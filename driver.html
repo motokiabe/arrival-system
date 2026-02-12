@@ -3,21 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>送信中...</title>
-    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
     <script>
-        // 開いた瞬間に信号を送る設定
-        const pusher = new Pusher('b12b8d8938bde96f41bb', { cluster: 'ap3' });
-        
-        // Pusherの特別な仕組みを使って、サーバーなしで信号を飛ばします
-        // ※これが一番確実です
-        const channel = pusher.subscribe('taxi-channel');
-        pusher.connection.bind('connected', function() {
-            // デバッグコンソールと同じ命令をここで出します
+        // コピーしたURLをここに貼り付けました
+        const webhookUrl = 'https://webhook.site/e277decf-9384-4253-9808-fd489869c463';
+
+        fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors'
+        }).then(() => {
             alert("到着5分前信号を送信しました！");
-            // 送信後、1秒で画面を閉じる（または前の画面に戻る）
-            history.back();
+            // ホーム画面に戻るような動作
+            window.location.href = "about:blank"; 
         });
     </script>
 </body>
