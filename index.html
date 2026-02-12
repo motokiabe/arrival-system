@@ -5,29 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>後部座席案内システム</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #000;
-            color: #fff;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #display-area {
-            text-align: center;
-        }
-        #message {
-            font-size: 4rem;
-            margin-bottom: 20px;
-        }
-        #timer {
-            font-size: 12rem;
-            font-weight: bold;
-            font-variant-numeric: tabular-nums;
-        }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #display-area { text-align: center; }
+        #message { font-size: 4rem; margin-bottom: 20px; }
+        #timer { font-size: 12rem; font-weight: bold; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
@@ -38,10 +19,9 @@
 </div>
 
 <script>
-    let timeLeft = 300; // 5分（300秒）
+    let timeLeft = 300; 
     let timerId = null;
 
-    // タイマーを表示更新する関数
     function updateDisplay() {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
@@ -49,10 +29,9 @@
             `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // タイマーを開始する関数
+    // タイマーを開始する命令
     function startTimer() {
-        if (timerId !== null) return; // すでに動いていたら何もしない
-        
+        if (timerId !== null) return;
         timerId = setInterval(() => {
             if (timeLeft > 0) {
                 timeLeft--;
@@ -64,34 +43,31 @@
         }, 1000);
     }
 
-    // --- iPhoneからの信号（Webhook）をチェックする仕組み ---
+    // --- ここが重要！iPhoneからの信号を見つける仕組み ---
     async function checkSignal() {
-        const token = 'e277decf-9384-4253-9808-fd489869c463';
-        const url = `https://webhook.site/token/${token}/requests?sorting=newest`;
+        // あなたのWebhook ID
+        const url = `https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463/requests?sorting=newest`;
 
         try {
             const response = await fetch(url);
             const data = await response.json();
 
-            // もし未読の信号があれば実行
+            // 信号（リクエスト）が1つ以上あればタイマー始動
             if (data.data && data.data.length > 0) {
                 startTimer();
+                console.log("信号をキャッチしました！");
 
-                // 反応した信号を削除して、何度も動かないようにする
-                await fetch(`https://webhook.site/token/${token}`, { method: 'DELETE' });
-                console.log("信号を受信、タイマーを開始しました。");
+                // 反応した信号を消去して、何度も動かないようにする
+                await fetch(`https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463`, { method: 'DELETE' });
             }
         } catch (error) {
-            console.error("信号チェック中...", error);
+            // エラー時は静かに再試行
         }
     }
 
-    // 3秒ごとにiPhoneからの信号が来ていないか見に行く
-    setInterval(checkSignal, 3000);
-
-    // 最初の表示をセット
+    // 2秒ごとにチェック（少し早めました）
+    setInterval(checkSignal, 2000);
     updateDisplay();
 </script>
-
 </body>
 </html>
