@@ -22,6 +22,7 @@
     let timeLeft = 300; 
     let timerId = null;
 
+    // 画面の数字を更新する
     function updateDisplay() {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
@@ -29,9 +30,10 @@
             `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // タイマーを開始する命令
+    // タイマーを実際に動かす
     function startTimer() {
-        if (timerId !== null) return;
+        if (timerId !== null) return; // すでに動いていたら何もしない
+        
         timerId = setInterval(() => {
             if (timeLeft > 0) {
                 timeLeft--;
@@ -43,30 +45,34 @@
         }, 1000);
     }
 
-    // --- ここが重要！iPhoneからの信号を見つける仕組み ---
+    // iPhoneからの信号（Webhook）をチェックする関数
     async function checkSignal() {
-        // あなたのWebhook ID
-        const url = `https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463/requests?sorting=newest`;
+        // あなたの最新Webhook ID
+        const token = 'e277decf-9384-4253-9808-fd489869c463';
+        const url = `https://webhook.site/token/${token}/requests?sorting=newest`;
 
         try {
             const response = await fetch(url);
             const data = await response.json();
 
-            // 信号（リクエスト）が1つ以上あればタイマー始動
+            // 信号が届いているか確認
             if (data.data && data.data.length > 0) {
-                startTimer();
-                console.log("信号をキャッチしました！");
+                console.log("信号を受信しました！");
+                startTimer(); // タイマー開始
 
-                // 反応した信号を消去して、何度も動かないようにする
-                await fetch(`https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463`, { method: 'DELETE' });
+                // 届いた信号を消去（一度きりの動作にするため）
+                await fetch(`https://webhook.site/token/${token}`, { method: 'DELETE' });
             }
         } catch (error) {
-            // エラー時は静かに再試行
+            // エラー時はコンソールに記録するだけ
+            console.log("信号確認中...");
         }
     }
 
-    // 2秒ごとにチェック（少し早めました）
+    // 2秒ごとに自動でチェックを開始する
     setInterval(checkSignal, 2000);
+
+    // 最初の表示をセット
     updateDisplay();
 </script>
 </body>
