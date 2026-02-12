@@ -11,15 +11,11 @@
 </head>
 <body>
     <button class="btn" onclick="send()">到着5分前を知らせる</button>
-
     <script>
         function send() {
-            const url = 'https://webhook.site/e277decf-9384-4253-9808-fd489869c463';
-            
-            // 信号を送信
+            // 新しいURLに差し替えました
+            const url = 'https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61';
             fetch(url, { method: 'POST', mode: 'no-cors' });
-
-            // 送信完了を知らせる
             alert("信号を送信しました！");
         }
     </script>
