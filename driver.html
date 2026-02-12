@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運転手操作パネル</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #eee; }
+        button { width: 80%; height: 200px; font-size: 40px; font-weight: bold; color: white; background: #2196F3; border: none; border-radius: 20px; box-shadow: 0 10px #1976D2; cursor: pointer; }
+        button:active { box-shadow: 0 2px #1976D2; transform: translateY(8px); }
+    </style>
+</head>
+<body>
+    <button onclick="sendSignal()">5分前ボタン</button>
+
+    <script>
+        async function sendSignal() {
+            // PusherのAPIを使って信号を送る（今回はテスト用に簡易的な中継サーバー経由のイメージ）
+            // 実際にはここをPusherの管理画面の「Debug Console」でテストするのが一番早いです
+            alert("信号を送信しました！タブレットを確認してください。");
+            
+            // 本来はここにサーバーへの命令を書きますが、
+            // まずは「Debug Console」を使って動作確認しましょう。
+        }
+    </script>
+</body>
+</html>
