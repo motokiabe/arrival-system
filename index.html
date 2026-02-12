@@ -7,22 +7,22 @@
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #display-area { text-align: center; }
-        #message { font-size: 4rem; margin-bottom: 20px; }
+        #message { font-size: 3rem; margin-bottom: 20px; color: #aaa; }
         #timer { font-size: 12rem; font-weight: bold; font-variant-numeric: tabular-nums; }
     </style>
 </head>
-<body>
+<body onclick="startCheck()">
 
 <div id="display-area">
-    <div id="message">まもなく到着します</div>
+    <div id="message">画面を一度タップして<br>待機してください</div>
     <div id="timer">05:00</div>
 </div>
 
 <script>
     let timeLeft = 300; 
     let timerId = null;
+    let isChecking = false;
 
-    // 画面の数字を更新する
     function updateDisplay() {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
@@ -30,10 +30,10 @@
             `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
 
-    // タイマーを実際に動かす
     function startTimer() {
-        if (timerId !== null) return; // すでに動いていたら何もしない
-        
+        if (timerId !== null) return;
+        document.getElementById('message').innerText = "まもなく到着します";
+        document.getElementById('message').style.color = "#fff";
         timerId = setInterval(() => {
             if (timeLeft > 0) {
                 timeLeft--;
@@ -45,34 +45,33 @@
         }, 1000);
     }
 
-    // iPhoneからの信号（Webhook）をチェックする関数
+    // 信号チェック（読み取り用URLを最新・確実に修正）
     async function checkSignal() {
-        // あなたの最新Webhook ID
-        const token = 'e277decf-9384-4253-9808-fd489869c463';
-        const url = `https://webhook.site/token/${token}/requests?sorting=newest`;
+        // ID: e277decf-9384-4253-9808-fd489869c463
+        const url = 'https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463/requests?sorting=newest';
 
         try {
             const response = await fetch(url);
             const data = await response.json();
 
-            // 信号が届いているか確認
-            if (data.data && data.data.length > 0) {
-                console.log("信号を受信しました！");
-                startTimer(); // タイマー開始
-
-                // 届いた信号を消去（一度きりの動作にするため）
-                await fetch(`https://webhook.site/token/${token}`, { method: 'DELETE' });
+            // data.data の中に iPhone からの信号が入っているかチェック
+            if (data && data.data && data.data.length > 0) {
+                startTimer(); 
+                // 信号を使い終わったので中継所を空にする
+                await fetch('https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463', { method: 'DELETE' });
             }
-        } catch (error) {
-            // エラー時はコンソールに記録するだけ
-            console.log("信号確認中...");
+        } catch (e) {
+            console.log("信号待ち...");
         }
     }
 
-    // 2秒ごとに自動でチェックを開始する
-    setInterval(checkSignal, 2000);
+    function startCheck() {
+        if(isChecking) return;
+        isChecking = true;
+        document.getElementById('message').innerText = "待機中：iPhoneのボタンを押してください";
+        setInterval(checkSignal, 2000);
+    }
 
-    // 最初の表示をセット
     updateDisplay();
 </script>
 </body>
