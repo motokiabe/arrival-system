@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>送信パネル</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f4f4f4; }
-        .btn { width: 80%; padding: 20px; font-size: 20px; background: #007aff; color: white; border: none; border-radius: 12px; font-weight: bold; }
-    </style>
 </head>
-<body>
-    <button class="btn" onclick="send()">到着5分前を知らせる</button>
+<body style="text-align:center; padding-top:50px;">
+    <button onclick="send()" style="width:80%; padding:20px; font-size:20px; background:#007aff; color:white; border-radius:12px;">到着5分前を知らせる</button>
+
     <script>
         function send() {
-            // 新しいURLに差し替えました
+            // ここが最新のURL（ID）です
             const url = 'https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61';
-            fetch(url, { method: 'POST', mode: 'no-cors' });
-            alert("信号を送信しました！");
+            
+            fetch(url, { method: 'POST', mode: 'no-cors' })
+            .then(() => {
+                alert("信号を送信しました！");
+            });
         }
     </script>
 </body>
