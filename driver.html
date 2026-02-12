@@ -2,21 +2,26 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>送信中...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>送信パネル</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background: #f4f4f4; }
+        .btn { width: 80%; padding: 20px; font-size: 20px; background: #007aff; color: white; border: none; border-radius: 12px; font-weight: bold; }
+    </style>
 </head>
 <body>
-    <script>
-        // コピーしたURLをここに貼り付けました
-        const webhookUrl = 'https://webhook.site/e277decf-9384-4253-9808-fd489869c463';
+    <button class="btn" onclick="send()">到着5分前を知らせる</button>
 
-        fetch(webhookUrl, {
-            method: 'POST',
-            mode: 'no-cors'
-        }).then(() => {
-            alert("到着5分前信号を送信しました！");
-            // ホーム画面に戻るような動作
-            window.location.href = "about:blank"; 
-        });
+    <script>
+        function send() {
+            const url = 'https://webhook.site/e277decf-9384-4253-9808-fd489869c463';
+            
+            // 信号を送信
+            fetch(url, { method: 'POST', mode: 'no-cors' });
+
+            // 送信完了を知らせる
+            alert("信号を送信しました！");
+        }
     </script>
 </body>
 </html>
