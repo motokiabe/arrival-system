@@ -1,15 +1,12 @@
-// 3秒ごとに中継所に信号が来ていないか確認する
+// 3秒ごとにチェック
 setInterval(async () => {
     try {
-        // 中継所の情報を取得（URLの最後に ? をつけるのがコツです）
-        const response = await fetch('https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463/requests?sorting=newest');
-        const data = await response.json();
-        
-        // もし新しい信号（リクエスト）が届いていたらタイマー開始
+        const res = await fetch('https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463/requests?sorting=newest');
+        const data = await res.json();
         if (data.data.length > 0) {
-            startTimer(); 
+            startTimer(); // タイマー開始！
+            // 信号をリセット
+            fetch('https://webhook.site/token/e277decf-9384-4253-9808-fd489869c463', { method: 'DELETE' });
         }
-    } catch (e) {
-        console.log("確認中...");
-    }
+    } catch (e) { }
 }, 3000);
