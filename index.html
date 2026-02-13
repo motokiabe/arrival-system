@@ -2,48 +2,29 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Visual Update)</title>
+    <title>到着案内 Pro (シンプル実用版)</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; transition: background-color 0.2s; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         
-        /* ラベル（到着まで） */
+        /* 通常時のラベル */
         #label { font-size: 3rem; color: #ccc; margin-bottom: 10px; }
         
-        /* メインタイマー（サイズを少し小さく調整） */
-        #main-timer { font-size: 18rem; font-weight: bold; line-height: 1; }
+        /* タイマー数字（サイズ控えめ） */
+        #main-timer { font-size: 16rem; font-weight: bold; line-height: 1; }
         
-        /* まもなく到着です（派手なギミック） */
+        /* ラスト30秒のメッセージ（黄色・固定） */
         #sub-message { 
             font-size: 5rem; 
             font-weight: bold; 
+            color: #ffff00; /* 黄色に固定 */
             display: none; 
-            animation: super-flash 1s infinite, rainbow 3s infinite;
         }
 
-        /* 虹色アニメーション */
-        @keyframes rainbow {
-            0% { color: #ff0000; }
-            20% { color: #ffff00; }
-            40% { color: #00ff00; }
-            60% { color: #00ffff; }
-            80% { color: #0000ff; }
-            100% { color: #ff00ff; }
-        }
-
-        /* 拡大縮小の動き */
-        @keyframes super-flash {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        /* 画面全体のフラッシュ（3回用） */
-        .alert-flash {
-            animation: flash-bg 0.2s 3;
-        }
-        @keyframes flash-bg {
+        /* 1回だけフラッシュするアニメーション */
+        .flash-once { animation: flash-white-once 0.3s ease-out; }
+        @keyframes flash-white-once {
             0% { background-color: #000; }
             50% { background-color: #fff; }
             100% { background-color: #000; }
@@ -68,63 +49,71 @@
     let timeLeft = 0;
     let timerId = null;
     let lastStatus = "0";
+    let flashed30 = false; // 30秒フラッシュ済み判定
 
     async function check() {
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
-            if (status === "5" && lastStatus !== "5") start(300);
-            else if (status === "3" && lastStatus !== "3") start(180);
-            else if (status === "0" && lastStatus !== "0") reset();
-            
-            lastStatus = status;
-        } catch (e) { console.error("Waiting..."); }
+            if (status !== lastStatus) {
+                if (status === "5") start(300);
+                else if (status === "3") start(180);
+                else if (status === "0") stopTimer();
+                lastStatus = status;
+            }
+        } catch (e) { console.log("Waiting..."); }
+    }
+
+    function triggerFlash() {
+        document.body.classList.remove('flash-once');
+        void document.body.offsetWidth; // アニメーション再トリガー用
+        document.body.classList.add('flash-once');
     }
 
     function start(sec) {
         timeLeft = sec;
+        flashed30 = false;
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
-        document.getElementById('chime').play().catch(()=>{});
+        document.getElementById('main-timer').style.display = 'block';
+        document.getElementById('label').style.display = 'block';
+        document.getElementById('sub-message').style.display = 'none';
         
-        // 画面全体を3回フラッシュさせる
-        document.body.classList.remove('alert-flash');
-        void document.body.offsetWidth; // リスタート用のおまじない
-        document.body.classList.add('alert-flash');
+        document.getElementById('chime').play().catch(()=>{});
+        triggerFlash(); // 開始時フラッシュ
 
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
-            const m = Math.ceil(timeLeft / 60);
-            
             if(timeLeft > 30) {
-                // 通常時
-                document.getElementById('label').style.display = 'block';
-                document.getElementById('timer-num').innerText = m;
-            } else {
-                // ラスト30秒：ラベルを消して派手なメッセージを表示
+                document.getElementById('timer-num').innerText = Math.ceil(timeLeft / 60);
+            } else if (timeLeft <= 30 && timeLeft > 0) {
+                // ラスト30秒
+                if(!flashed30) {
+                    triggerFlash(); // 30秒突入時フラッシュ
+                    flashed30 = true;
+                }
                 document.getElementById('label').style.display = 'none';
                 document.getElementById('main-timer').style.display = 'none';
                 document.getElementById('sub-message').style.display = 'block';
+            } else {
+                stopTimer();
             }
-            if(timeLeft <= 0) reset();
         }, 1000);
     }
 
-    function reset() {
-        clearInterval(timerId);
+    function stopTimer() {
+        if(timerId) clearInterval(timerId);
         timerId = null;
-        document.body.classList.remove('alert-flash');
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('timer-container').style.display = 'none';
-        document.getElementById('main-timer').style.display = 'block';
-        document.getElementById('sub-message').style.display = 'none';
+        lastStatus = "0";
     }
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("システムをアップデートしました。");
+        alert("システム起動。30秒前は黄色文字＆フラッシュ1回に設定しました。");
     }
 </script>
 </body>
