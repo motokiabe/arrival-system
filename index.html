@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Stable)</title>
+    <title>到着案内 Pro (安定版)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -16,6 +16,7 @@
 </head>
 <body onclick="startChecking()">
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
+    
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
@@ -26,27 +27,32 @@
     <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    const GAS_URL = "★ここに作成したURLを貼る★"; // 後ほど作成
+    // あなたが発行した専用URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
+    
     let timeLeft = 0;
     let timerId = null;
-    let isWorking = false;
+    let lastStatus = "0";
 
     async function check() {
         try {
-            const res = await fetch(GAS_URL);
+            // Googleから現在の信号（5, 3, 0）を取得
+            const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
-            if (status === "5" && !isWorking) start(300);
-            else if (status === "3" && !isWorking) start(180);
-            else if (status === "0") reset();
-        } catch (e) {}
+            
+            if (status === "5" && lastStatus !== "5") start(300);
+            else if (status === "3" && lastStatus !== "3") start(180);
+            else if (status === "0" && lastStatus !== "0") reset();
+            
+            lastStatus = status;
+        } catch (e) { console.error("通信中..."); }
     }
 
     function start(sec) {
-        isWorking = true;
         timeLeft = sec;
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
-        document.getElementById('chime').play();
+        document.getElementById('chime').play().catch(()=>{});
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
@@ -62,8 +68,8 @@
     }
 
     function reset() {
-        isWorking = false;
         clearInterval(timerId);
+        timerId = null;
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('timer-container').style.display = 'none';
         document.getElementById('main-timer').style.display = 'block';
@@ -71,8 +77,9 @@
     }
 
     function startChecking() {
-        setInterval(check, 2000);
-        alert("システム稼働中");
+        // 2秒ごとにGoogleを見に行く設定
+        setInterval(check, 2000); 
+        alert("システム稼働を開始しました。\niPhoneから送信してください。");
     }
 </script>
 </body>
