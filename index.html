@@ -2,31 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (シンプル実用版)</title>
+    <title>到着案内 Pro (演出強化版)</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; transition: background-color 0.2s; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         
-        /* 通常時のラベル */
         #label { font-size: 3rem; color: #ccc; margin-bottom: 10px; }
-        
-        /* タイマー数字（サイズ控えめ） */
         #main-timer { font-size: 16rem; font-weight: bold; line-height: 1; }
-        
-        /* ラスト30秒のメッセージ（黄色・固定） */
-        #sub-message { 
-            font-size: 5rem; 
-            font-weight: bold; 
-            color: #ffff00; /* 黄色に固定 */
-            display: none; 
-        }
+        #sub-message { font-size: 5rem; font-weight: bold; color: #ffff00; display: none; }
 
-        /* 1回だけフラッシュするアニメーション */
-        .flash-once { animation: flash-white-once 0.3s ease-out; }
-        @keyframes flash-white-once {
+        /* ゆっくりしたフラッシュ（0.8秒かけてフワッと光って消える） */
+        .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
+        @keyframes flash-white-slow {
             0% { background-color: #000; }
-            50% { background-color: #fff; }
+            40% { background-color: #fff; }
             100% { background-color: #000; }
         }
     </style>
@@ -49,7 +39,7 @@
     let timeLeft = 0;
     let timerId = null;
     let lastStatus = "0";
-    let flashed30 = false; // 30秒フラッシュ済み判定
+    let lastMinute = -1;
 
     async function check() {
         try {
@@ -57,23 +47,28 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                if (status === "5") start(300);
-                else if (status === "3") start(180);
-                else if (status === "0") stopTimer();
+                if (status === "0") {
+                    stopTimer();
+                } else {
+                    // 5, 4, 3, 2, 1など、送られた数字をそのまま分として開始
+                    const mins = parseInt(status);
+                    if (!isNaN(mins) && mins > 0) start(mins * 60);
+                }
                 lastStatus = status;
             }
         } catch (e) { console.log("Waiting..."); }
     }
 
     function triggerFlash() {
-        document.body.classList.remove('flash-once');
-        void document.body.offsetWidth; // アニメーション再トリガー用
-        document.body.classList.add('flash-once');
+        document.body.classList.remove('flash-slow');
+        void document.body.offsetWidth;
+        document.body.classList.add('flash-slow');
     }
 
     function start(sec) {
         timeLeft = sec;
-        flashed30 = false;
+        lastMinute = Math.ceil(timeLeft / 60);
+        
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
         document.getElementById('main-timer').style.display = 'block';
@@ -81,26 +76,48 @@
         document.getElementById('sub-message').style.display = 'none';
         
         document.getElementById('chime').play().catch(()=>{});
-        triggerFlash(); // 開始時フラッシュ
+        triggerFlash();
 
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
+            const currentMin = Math.ceil(timeLeft / 60);
+
+            // 毎分（5分, 4分...）の切り替わりでフワッとフラッシュ
+            if (currentMin > 0 && currentMin !== lastMinute) {
+                triggerFlash();
+                lastMinute = currentMin;
+            }
+
             if(timeLeft > 30) {
-                document.getElementById('timer-num').innerText = Math.ceil(timeLeft / 60);
+                document.getElementById('timer-num').innerText = currentMin;
             } else if (timeLeft <= 30 && timeLeft > 0) {
-                // ラスト30秒
-                if(!flashed30) {
-                    triggerFlash(); // 30秒突入時フラッシュ
-                    flashed30 = true;
-                }
+                // 30秒前のフラッシュは1回だけ
+                if (timeLeft === 30) triggerFlash();
                 document.getElementById('label').style.display = 'none';
                 document.getElementById('main-timer').style.display = 'none';
                 document.getElementById('sub-message').style.display = 'block';
             } else {
-                stopTimer();
+                finishSequence();
             }
         }, 1000);
+    }
+
+    // 終了時の処理：30秒の暗転を挟む
+    function finishSequence() {
+        clearInterval(timerId);
+        timerId = null;
+        
+        // 全て隠して真っ暗にする
+        document.getElementById('timer-container').style.display = 'none';
+        document.getElementById('standby-image').style.display = 'none';
+        
+        // 30秒後に待機画像を表示
+        setTimeout(() => {
+            if (!timerId) { // 新しいタイマーが始まっていない場合のみ
+                document.getElementById('standby-image').style.display = 'block';
+            }
+        }, 30000); // 30秒
     }
 
     function stopTimer() {
@@ -113,7 +130,7 @@
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("システム起動。30秒前は黄色文字＆フラッシュ1回に設定しました。");
+        alert("アップデート完了！\n・フワッとしたフラッシュ\n・終了後30秒の暗転\nを追加しました。");
     }
 </script>
 </body>
