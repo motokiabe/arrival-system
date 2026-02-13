@@ -1,18 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>後部座席案内システム</title>
+    <style>
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #display-area { text-align: center; }
+        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; }
+        #timer { font-size: 15rem; font-weight: bold; }
+    </style>
+</head>
+<body onclick="ready()">
+    <div id="display-area">
+        <div id="message">画面を一度タップして<br>待機してください</div>
+        <div id="timer">05:00</div>
+    </div>
+
+<script>
+    let timeLeft = 300; 
+    let timerId = null;
+
+    function updateDisplay() {
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        document.getElementById('timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function startTimer() {
+        if (timerId !== null) return;
+        document.getElementById('message').innerText = "まもなく到着します";
+        document.getElementById('message').style.color = "#fff";
+        timerId = setInterval(() => {
+            if (timeLeft > 0) { timeLeft--; updateDisplay(); }
+            else { clearInterval(timerId); document.getElementById('message').innerText = "到着しました"; }
+        }, 1000);
+    }
+
     async function checkSignal() {
         const username = 'motokiabe'; 
-        // raw.githubusercontent ではなく、API経由で直接「最新」を取得するように変更
         const url = `https://api.github.com/repos/${username}/arrival-system/contents/signal.json?t=` + new Date().getTime();
 
         try {
             const res = await fetch(url);
             const fileData = await res.json();
-            // GitHub APIは中身をBase64で返すので、それを解読します
             const content = JSON.parse(atob(fileData.content));
-            
             if (content.status === 'start') {
                 startTimer();
             }
         } catch (e) {
-            console.log("チェック失敗: ", e);
+            console.log("チェック中...");
         }
     }
+
+    function ready() {
+        document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
+        setInterval(checkSignal, 2000); 
+    }
+    updateDisplay();
+</script>
+</body>
+</html>
