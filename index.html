@@ -7,12 +7,14 @@
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #display-area { text-align: center; }
-        #message { font-size: 3rem; margin-bottom: 20px; color: #aaa; }
-        #timer { font-size: 12rem; font-weight: bold; }
+        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; line-height: 1.5; }
+        #timer { font-size: 15rem; font-weight: bold; font-variant-numeric: tabular-nums; }
     </style>
 </head>
-<body onclick="startTimer()"> <div id="display-area">
-    <div id="message">テスト中：ここをタップして<br>タイマーが動くか確認してください</div>
+<body onclick="ready()">
+
+<div id="display-area">
+    <div id="message">画面を一度タップして<br>待機してください</div>
     <div id="timer">05:00</div>
 </div>
 
@@ -42,17 +44,27 @@
         }, 1000);
     }
 
-    // ★ Webhookを介さず、URLの末尾に「?start=true」がついたら動く仕組み ★
-    if (window.location.search.includes('start=true')) {
-        startTimer();
+    // iPhoneからの信号（履歴）があるかチェックする
+    async function check() {
+        const url = 'https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61/requests?sorting=newest';
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            // 履歴（data）が1件以上あればタイマー始動
+            if (data && data.data && data.data.length > 0) {
+                startTimer();
+                // 履歴をリセット
+                fetch('https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', { method: 'DELETE' });
+            }
+        } catch (e) {}
     }
 
-    // 1秒ごとにURLをチェック（iPhoneからの指示を待つ）
-    setInterval(() => {
-        if (window.location.hash === '#start') {
-            startTimer();
-        }
-    }, 1000);
+    function ready() {
+        document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
+        // 1秒ごとに信号を確認
+        setInterval(check, 1000);
+    }
 
     updateDisplay();
 </script>
