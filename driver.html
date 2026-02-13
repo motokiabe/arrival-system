@@ -2,18 +2,28 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>送信パネル</title>
+    <style>
+        body { text-align:center; padding-top:30px; background:#f4f4f4; font-family:sans-serif; }
+        .btn { width:85%; padding:30px; font-size:22px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+        .btn-5 { background:#007aff; }
+        .btn-3 { background:#34c759; }
+        .btn-reset { background:#8e8e93; }
+    </style>
 </head>
-<body style="text-align:center; padding-top:100px; background:#f4f4f4;">
-    <button onclick="send()" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border-radius:20px; font-weight:bold;">到着5分前を知らせる</button>
+<body>
+    <button onclick="send('start5')" class="btn btn-5">到着 5分前</button>
+    <button onclick="send('start3')" class="btn btn-3">到着 3分前</button>
+    <button onclick="send('waiting')" class="btn btn-reset">待機画面に戻す</button>
 
     <script>
-    async function send() {
-        // 初回のみトークンを聞かれます。メモしたghp_...を貼り付けてください。
+    async function send(command) {
         let token = localStorage.getItem('gh_token');
         if (!token) {
             token = prompt("新しいGitHubトークンを入力してください");
             if (token) localStorage.setItem('gh_token', token);
+            else return;
         }
 
         const username = 'motokiabe'; 
@@ -24,25 +34,17 @@
                 headers: { 'Authorization': `token ${token}` }
             });
             const fileData = await res.json();
-            
-            const content = btoa(JSON.stringify({status: "start", time: new Date().getTime()}));
+            const content = btoa(JSON.stringify({status: command, time: new Date().getTime()}));
 
             const update = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: "signal start",
-                    content: content,
-                    sha: fileData.sha
-                })
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: "update", content: content, sha: fileData.sha })
             });
 
-            if (update.ok) alert("送信成功！");
-            else alert("送信失敗。トークンが間違っているか、無効です。");
-        } catch (e) { alert("エラー: " + e); }
+            if (update.ok) alert("送信完了");
+            else alert("エラー: トークンを再確認してください");
+        } catch (e) { alert("接続エラー: " + e); }
     }
     </script>
 </body>
