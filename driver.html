@@ -3,25 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>送信パネル</title>
+    <title>送信パネル Pro</title>
     <style>
-        body { text-align:center; padding-top:30px; background:#f4f4f4; font-family:sans-serif; }
-        .btn { width:85%; padding:30px; font-size:22px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:20px; }
+        body { text-align:center; padding-top:30px; background:#1a1a1a; font-family:sans-serif; transition: 0.3s; color: white; }
+        .btn { width:90%; padding:35px; font-size:24px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:25px; box-shadow:0 6px 15px rgba(0,0,0,0.5); }
+        .btn:active { transform: scale(0.95); opacity: 0.8; }
         .btn-5 { background:#007aff; }
         .btn-3 { background:#34c759; }
         .btn-reset { background:#8e8e93; }
+        #status { font-size: 18px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
     <button onclick="send('start5')" class="btn btn-5">到着 5分前</button>
     <button onclick="send('start3')" class="btn btn-3">到着 3分前</button>
     <button onclick="send('waiting')" class="btn btn-reset">待機画面に戻す</button>
+    <div id="status">● 待機中</div>
 
     <script>
     async function send(command) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = "● 送信中...";
+        
         let token = localStorage.getItem('gh_token');
         if (!token) {
-            token = prompt("GitHubトークンを入力してください（一度入力すれば保存されます）");
+            token = prompt("GitHubトークンを入力してください\n(No Expirationで作成したものを推奨)");
             if (token) localStorage.setItem('gh_token', token);
             else return;
         }
@@ -31,22 +37,27 @@
         
         try {
             const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
-                headers: { 'Authorization': `token ${token}` }
+                headers: { 'Authorization': `token ${token}`, 'Cache-Control': 'no-cache' }
             });
             const fileData = await res.json();
+            
             const content = btoa(JSON.stringify({status: command, time: Date.now()}));
-
             const update = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: "update", content: content, sha: fileData.sha })
             });
-            
-            if (update.ok) alert("送信完了");
-            else throw new Error();
+
+            if (update.ok) {
+                document.body.style.backgroundColor = "#004d40";
+                statusEl.innerText = "● 送信成功 ✓";
+                if (navigator.vibrate) navigator.vibrate(200); 
+                setTimeout(() => { document.body.style.backgroundColor = "#1a1a1a"; }, 1000);
+            } else { throw new Error(); }
         } catch (e) {
-            alert("送信失敗。トークンを入れ直してください。");
+            alert("送信失敗。トークンを再入力してください。");
             localStorage.removeItem('gh_token');
+            statusEl.innerText = "● エラー";
         }
     }
     </script>
