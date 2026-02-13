@@ -4,41 +4,46 @@
     <meta charset="UTF-8">
     <title>後部座席案内システム</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #display-area { text-align: center; }
+        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; }
         #timer { font-size: 15rem; font-weight: bold; }
-        #message { font-size: 3rem; color: #aaa; text-align: center; }
     </style>
 </head>
-<body onclick="startChecking()">
-    <div id="display-area">
-        <div id="message">画面を一度タップして<br>待機してください</div>
-        <div id="timer">05:00</div>
-    </div>
+<body onclick="ready()">
+
+<div id="display-area">
+    <div id="message">画面を一度タップして<br>待機してください</div>
+    <div id="timer">05:00</div>
+</div>
 
 <script>
-    let timeLeft = 300;
+    let timeLeft = 300; 
     let timerId = null;
 
+    function updateDisplay() {
+        const m = Math.floor(timeLeft / 60);
+        const s = timeLeft % 60;
+        document.getElementById('timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
     function startTimer() {
-        if (timerId) return;
+        if (timerId !== null) return;
         document.getElementById('message').innerText = "まもなく到着します";
+        document.getElementById('message').style.color = "#fff";
         timerId = setInterval(() => {
-            if (timeLeft > 0) { timeLeft--; update(); }
+            if (timeLeft > 0) { timeLeft--; updateDisplay(); }
             else { clearInterval(timerId); document.getElementById('message').innerText = "到着しました"; }
         }, 1000);
     }
 
-    function update() {
-        const m = Math.floor(timeLeft / 60);
-        const s = timeLeft % 60;
-        document.getElementById('timer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    }
+    async function checkSignal() {
+        const username = 'motokiabe'; 
+        // キャッシュ（古いデータ）を読まないように毎回URLを変える
+        const url = `https://raw.githubusercontent.com/${username}/arrival-system/main/signal.json?t=` + new Date().getTime();
 
-    async function check() {
         try {
-            // 自分のサイトにある signal.json を見に行く（これならブロックされません）
-            // キャッシュを防ぐために後ろに時間を付けます
-            const res = await fetch('signal.json?' + new Date().getTime());
+            const res = await fetch(url);
             const data = await res.json();
             if (data.status === 'start') {
                 startTimer();
@@ -46,10 +51,11 @@
         } catch (e) {}
     }
 
-    function startChecking() {
-        document.getElementById('message').innerText = "待機中...";
-        setInterval(check, 2000);
+    function ready() {
+        document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
+        setInterval(checkSignal, 2000); 
     }
+    updateDisplay();
 </script>
 </body>
 </html>
