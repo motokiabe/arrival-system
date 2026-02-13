@@ -2,20 +2,20 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>後部座席案内システム</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        /* 画像を画面いっぱいに表示する設定 */
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
         #timer-container { display: none; z-index: 10; text-align: center; width: 100%; }
         #label { font-size: 4rem; color: #aaa; margin-bottom: 20px; }
-        #main-timer { font-size: 30rem; font-weight: bold; line-height: 1; }
-        #unit { font-size: 10rem; margin-left: 20px; }
-        #sub-message { font-size: 8rem; font-weight: bold; color: #ff3b30; display: none; padding: 0 40px; line-height: 1.2; }
+        #main-timer { font-size: 25rem; font-weight: bold; line-height: 1; }
+        #unit { font-size: 8rem; margin-left: 20px; }
+        #sub-message { font-size: 7rem; font-weight: bold; color: #ff3b30; display: none; padding: 0 40px; line-height: 1.2; }
     </style>
 </head>
 <body onclick="ready()">
-    <img id="standby-image" src="https://github.com/motokiabe/arrival-system/blob/main/IMG_2788.png?raw=true" alt="Standby">
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png" alt="Standby">
 
     <div id="timer-container">
         <div id="label">到着まで</div>
@@ -25,15 +25,17 @@
         </div>
     </div>
 
-<script>
+    <script>
     let timeLeft = 0; 
     let timerId = null;
 
+    // 表示の更新（秒を隠して「分」だけ表示、残り30秒でメッセージ）
     function updateDisplay() {
         const m = Math.ceil(timeLeft / 60); 
         const numEl = document.getElementById('timer-num');
         const mainArea = document.getElementById('main-timer');
         const subMsg = document.getElementById('sub-message');
+
         if (timeLeft > 30) {
             numEl.innerText = m;
             mainArea.style.display = 'block';
@@ -44,6 +46,7 @@
         }
     }
 
+    // タイマー開始
     function startTimer(seconds) {
         if (timerId !== null) return;
         timeLeft = seconds;
@@ -52,11 +55,15 @@
         updateDisplay();
         timerId = setInterval(() => {
             timeLeft--;
-            if (timeLeft > 0) updateDisplay();
-            else finish();
+            if (timeLeft > 0) {
+                updateDisplay();
+            } else {
+                finish();
+            }
         }, 1000);
     }
 
+    // 終了（待機画面に戻す）
     function finish() {
         clearInterval(timerId);
         timerId = null;
@@ -64,24 +71,29 @@
         document.getElementById('timer-container').style.display = 'none';
     }
 
+    // iPhoneからの信号をチェック
     async function checkSignal() {
-        // 更新を反映しやすくするためにURLの末尾に毎回違う数字を付ける
-        const url = `https://raw.githubusercontent.com/motokiabe/arrival-system/main/signal.json?t=${new Date().getTime()}`;
+        // キャッシュを防ぐためAPI経由で取得
+        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${new Date().getTime()}`;
         try {
             const res = await fetch(url);
-            const data = await res.json();
-            if (data.status === 'start5') startTimer(300);
-            else if (data.status === 'start3') startTimer(180);
-            else if (data.status === 'waiting') finish();
-        } catch (e) {}
+            const fileData = await res.json();
+            // GitHub APIのBase64データを解読
+            const content = JSON.parse(atob(fileData.content));
+            
+            if (content.status === 'start5') startTimer(300);
+            else if (content.status === 'start3') startTimer(180);
+            else if (content.status === 'waiting') finish();
+        } catch (e) {
+            console.log("Check failed");
+        }
     }
 
+    // 画面タップで通信開始
     function ready() {
-        // タップした時に画像を少し明るくして、準備OKを知らせる
-        document.getElementById('standby-image').style.opacity = "1.0";
         setInterval(checkSignal, 2000); 
-        alert("通信を開始しました。iPhoneからの指示を待ちます。");
+        alert("受信を開始しました！iPhoneのボタンを押してください。");
     }
-</script>
+    </script>
 </body>
 </html>
