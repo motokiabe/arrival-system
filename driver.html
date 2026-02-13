@@ -1,23 +1,5 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>送信パネル</title>
-</head>
-<body style="text-align:center; padding-top:50px;">
-    <button onclick="send()" style="width:80%; padding:20px; font-size:20px; background:#007aff; color:white; border-radius:12px;">到着5分前を知らせる</button>
-
-    <script>
-        function send() {
-            // ここが最新のURL（ID）です
-            const url = 'https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61';
-            
-            fetch(url, { method: 'POST', mode: 'no-cors' })
-            .then(() => {
-                alert("信号を送信しました！");
-            });
-        }
-    </script>
-</body>
-</html>
+function send() {
+    // タブレットで開いているURLの末尾に「#start」を付け加えるだけの命令
+    window.open('https://motokiabe.github.io/arrival-system/index.html#start', 'tablet_window');
+    alert("信号を送りました！タブレットを確認してください。");
+}
