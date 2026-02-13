@@ -39,22 +39,28 @@
 
     function updateDisplay() {
         const m = Math.ceil(timeLeft / 60);
+        const label = document.getElementById('label');
+        const mainArea = document.getElementById('main-timer');
+        const subMsg = document.getElementById('sub-message');
+
         if (timeLeft > 30) {
             document.getElementById('timer-num').innerText = m;
-            document.getElementById('label').style.display = 'block';
-            document.getElementById('main-timer').style.display = 'block';
-            document.getElementById('sub-message').style.display = 'none';
+            label.style.display = 'block';
+            mainArea.style.display = 'block';
+            subMsg.style.display = 'none';
         } else {
-            document.getElementById('label').style.display = 'none';
-            document.getElementById('main-timer').style.display = 'none';
-            document.getElementById('sub-message').style.display = 'block';
+            label.style.display = 'none';
+            mainArea.style.display = 'none';
+            subMsg.style.display = 'block';
         }
     }
 
     function startTimer(seconds, signalTime) {
-        if (lastSignalTime >= signalTime) return; // 古い信号や重複は無視
+        // 同じ信号（古い時間）なら無視
+        if (lastSignalTime >= signalTime) return;
         lastSignalTime = signalTime;
 
+        // ギミック発動
         document.body.classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 500);
         chime.play().catch(() => {});
@@ -80,23 +86,29 @@
     }
 
     async function checkSignal() {
-        // APIを叩く（?t=でキャッシュを完全回避）
-        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${Date.now()}`;
+        // 【最重要】API経由で、かつタイムスタンプを付与してキャッシュを強制排除
+        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${new Date().getTime()}`;
         try {
-            const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
+            const res = await fetch(url, { 
+                cache: 'no-store',
+                headers: { 'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT' } 
+            });
             const data = await res.json();
             const content = JSON.parse(atob(data.content));
             
             if (content.status === 'start5') startTimer(300, content.time);
             else if (content.status === 'start3') startTimer(180, content.time);
             else if (content.status === 'waiting') finish();
-        } catch (e) {}
+        } catch (e) {
+            console.error("Fetch failed");
+        }
     }
 
     function ready() {
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
-        setInterval(checkSignal, 1000); // 1秒おきにチェック
-        alert("システム稼働中");
+        // チェック間隔を1秒に
+        setInterval(checkSignal, 1000); 
+        alert("システム稼働中！\niPhoneからボタンを押してください。");
     }
 </script>
 </body>
