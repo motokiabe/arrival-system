@@ -45,26 +45,33 @@
         }, 1000);
     }
 
+    // ★ここが最重要！あなたのIDに完全固定しました★
     async function checkSignal() {
-        // 新しいID: 9f633dfd-a8f5-4360-ab3b-8c8d2c511b61
         const url = 'https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61/requests?sorting=newest';
+
         try {
             const response = await fetch(url);
             const data = await response.json();
+
+            // 履歴が1件以上あれば実行
             if (data && data.data && data.data.length > 0) {
-                startTimer(); 
-                // 信号を削除してリセット
+                startTimer();
+                // 実行したら、中継所の履歴を消してリセットする
                 await fetch('https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', { method: 'DELETE' });
             }
-        } catch (e) { }
+        } catch (e) {
+            console.log("信号待ち...");
+        }
     }
 
     function startCheck() {
         if(isChecking) return;
         isChecking = true;
-        document.getElementById('message').innerText = "接続成功！信号を待っています...";
-        setInterval(checkSignal, 2000);
+        document.getElementById('message').innerText = "待機中：iPhoneのボタンを押してください";
+        // 1秒ごとに見に行くようにスピードアップしました
+        setInterval(checkSignal, 1000);
     }
+
     updateDisplay();
 </script>
 </body>
