@@ -2,14 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Slim Unified)</title>
+    <title>到着案内 Pro (Fine Tuning)</title>
     <style>
-        /* iPadOSで最も細い日本語フォントを優先指定 */
         body { 
             margin: 0; 
             background-color: #000; 
             color: #fff; 
-            font-family: "Hiragino Sans", "W1", "Hiragino Kaku Gothic ProN", sans-serif; 
+            font-family: "Hiragino Sans", "W1", sans-serif; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
@@ -19,32 +18,37 @@
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         
-        /* ラベル：漢字も極細 */
+        /* 「到着まで」：サイズを少し小さく、より細く */
         #label { 
-            font-size: 3rem; 
-            color: #aaa; 
-            margin-bottom: 0; 
+            font-size: 2.5rem; 
+            color: #888; 
+            margin-bottom: -1rem; 
             font-weight: 100;
         }
         
-        /* タイマー数字と「分」：太さを極限まで細く統一 */
+        /* タイマー全体：数字と「分」をここで一括管理 */
         #main-timer { 
             font-size: 22rem; 
             font-weight: 100;
             line-height: 1; 
-            letter-spacing: -3px;
+            letter-spacing: -5px;
+        }
+
+        /* 「分」だけを個別に小さくする指定 */
+        .unit {
+            font-size: 8rem; /* 漢字のサイズを数字より大幅に小さく */
+            margin-left: 0.5rem;
+            vertical-align: baseline;
         }
         
-        /* まもなく到着です：黄色・極細 */
         #sub-message { 
-            font-size: 6rem; 
+            font-size: 5.5rem; 
             font-weight: 100; 
             color: #ffff00; 
             display: none; 
-            letter-spacing: 4px;
+            letter-spacing: 2px;
         }
 
-        /* フワッとしたフラッシュ */
         .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
         @keyframes flash-white-slow {
             0% { background-color: #000; }
@@ -58,7 +62,7 @@
     <div id="display-area">
         <div id="timer-container" style="display: none;">
             <div id="label">到着まで</div>
-            <div id="main-timer"><span id="timer-num"></span>分</div>
+            <div id="main-timer"></div>
             <div id="sub-message">まもなく到着です</div>
         </div>
     </div>
@@ -76,7 +80,6 @@
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
-            
             if (status !== lastStatus) {
                 if (status === "0") {
                     stopTimer();
@@ -103,6 +106,10 @@
         document.getElementById('main-timer').style.display = 'block';
         document.getElementById('label').style.display = 'block';
         document.getElementById('sub-message').style.display = 'none';
+        
+        // 初回表示（数字と単位を同時に流し込む）
+        document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
+        
         document.getElementById('chime').play().catch(()=>{});
         triggerFlash();
 
@@ -110,12 +117,15 @@
         timerId = setInterval(() => {
             timeLeft--;
             const currentMin = Math.ceil(timeLeft / 60);
+
             if (currentMin > 0 && currentMin !== lastMinute) {
                 triggerFlash();
                 lastMinute = currentMin;
             }
+
             if(timeLeft > 30) {
-                document.getElementById('timer-num').innerText = currentMin;
+                // 数字と「分」を一括で更新することで表示ズレを防止
+                document.getElementById('main-timer').innerHTML = `${currentMin}<span class="unit">分</span>`;
             } else if (timeLeft <= 30 && timeLeft > 0) {
                 if (timeLeft === 30) triggerFlash();
                 document.getElementById('label').style.display = 'none';
@@ -149,7 +159,7 @@
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("細字デザイン（日本語・数字共通）を適用しました。");
+        alert("表示タイミングと漢字サイズを微調整しました。");
     }
 </script>
 </body>
