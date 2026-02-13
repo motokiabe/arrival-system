@@ -3,44 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>後部座席案内システム</title>
+    <title>後部座席案内システム Pro</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Kaku Gothic ProN", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-        
         #display-area { text-align: center; width: 100%; z-index: 10; }
         #timer-container { display: none; }
-        
         #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; letter-spacing: 0.2rem; }
         #main-timer { font-size: 25rem; font-weight: bold; line-height: 1; }
         #unit { font-size: 8rem; margin-left: 1rem; color: #eee; }
+        #sub-message { font-size: 8.5rem; font-weight: bold; color: #ffff00; display: none; white-space: nowrap; animation: pulse 1.5s infinite; }
         
-        #sub-message { 
-            font-size: 8.5rem; 
-            font-weight: bold; 
-            color: #ffff00; 
-            display: none; 
-            white-space: nowrap; 
-            animation: pulse 1.5s infinite; 
-        }
-
-        /* 視覚ギミック：フラッシュ1回 */
         .flash { animation: flash-bg 0.5s ease-out 1; }
-        @keyframes flash-bg {
-            0% { background-color: #fff; }
-            100% { background-color: #000; }
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
+        @keyframes flash-bg { 0% { background-color: #fff; } 100% { background-color: #000; } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
 <body onclick="ready()">
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png" alt="Standby">
-
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
@@ -50,23 +30,22 @@
             </div>
         </div>
     </div>
-
     <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <script>
+<script>
     let timeLeft = 0; 
     let timerId = null;
+    let lastSignalTime = 0; // 同じ命令の連発を防止
     const chime = document.getElementById('chime');
 
     function updateDisplay() {
-        const m = Math.ceil(timeLeft / 60); 
-        const numEl = document.getElementById('timer-num');
+        const m = Math.ceil(timeLeft / 60);
+        const label = document.getElementById('label');
         const mainArea = document.getElementById('main-timer');
         const subMsg = document.getElementById('sub-message');
-        const label = document.getElementById('label');
 
         if (timeLeft > 30) {
-            numEl.innerText = m;
+            document.getElementById('timer-num').innerText = m;
             label.style.display = 'block';
             mainArea.style.display = 'block';
             subMsg.style.display = 'none';
@@ -77,16 +56,18 @@
         }
     }
 
-    function startTimer(seconds) {
-        if (timerId !== null) return;
-        
-        // 1回パッと光る
+    function startTimer(seconds, signalTime) {
+        // 同じ信号（時間）を受け取った場合は無視
+        if (lastSignalTime === signalTime) return;
+        lastSignalTime = signalTime;
+
+        // 動作ギミック
         document.body.classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 500);
+        chime.play().catch(() => {});
 
-        // 音を鳴らす
-        chime.play().catch(e => console.log("Audio play failed"));
-
+        // タイマーリセット
+        if (timerId) clearInterval(timerId);
         timeLeft = seconds;
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
@@ -94,11 +75,8 @@
         
         timerId = setInterval(() => {
             timeLeft--;
-            if (timeLeft > 0) {
-                updateDisplay();
-            } else {
-                finish();
-            }
+            if (timeLeft > 0) updateDisplay();
+            else finish();
         }, 1000);
     }
 
@@ -110,26 +88,26 @@
     }
 
     async function checkSignal() {
-        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${new Date().getTime()}`;
+        // キャッシュを絶対にさせないためのランダムクエリ
+        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?nocache=${Math.random()}`;
         try {
-            const res = await fetch(url);
-            const fileData = await res.json();
-            const content = JSON.parse(atob(fileData.content));
+            const res = await fetch(url, { cache: "no-store" });
+            const data = await res.json();
+            const content = JSON.parse(atob(data.content));
             
-            if (content.status === 'start5') startTimer(300);
-            else if (content.status === 'start3') startTimer(180);
+            if (content.status === 'start5') startTimer(300, content.time);
+            else if (content.status === 'start3') startTimer(180, content.time);
             else if (content.status === 'waiting') finish();
-        } catch (e) {}
+        } catch (e) {
+            console.error("Connection lost");
+        }
     }
 
     function ready() {
-        chime.play().then(() => {
-            chime.pause();
-            chime.currentTime = 0;
-        });
-        setInterval(checkSignal, 2000); 
-        alert("準備完了！");
+        chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
+        setInterval(checkSignal, 1000); // 1秒おきにチェック
+        alert("システム稼働中");
     }
-    </script>
+</script>
 </body>
 </html>
