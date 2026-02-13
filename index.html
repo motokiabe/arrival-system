@@ -2,17 +2,33 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (演出強化版)</title>
+    <title>到着案内 Pro (Slim & Large)</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         
-        #label { font-size: 3rem; color: #ccc; margin-bottom: 10px; }
-        #main-timer { font-size: 16rem; font-weight: bold; line-height: 1; }
-        #sub-message { font-size: 5rem; font-weight: bold; color: #ffff00; display: none; }
+        /* ラベル：さらに細く */
+        #label { font-size: 3.5rem; color: #aaa; margin-bottom: 0; font-weight: 200; }
+        
+        /* タイマー数字：極細（100）にしてサイズをアップ */
+        #main-timer { 
+            font-size: 22rem; 
+            font-weight: 100; /* 極細 */
+            line-height: 0.9; 
+            letter-spacing: -5px; /* 文字間を少し詰めてスタイリッシュに */
+        }
+        
+        /* まもなく到着です：黄色・細身 */
+        #sub-message { 
+            font-size: 7rem; 
+            font-weight: 200; 
+            color: #ffff00; 
+            display: none; 
+            letter-spacing: 2px;
+        }
 
-        /* ゆっくりしたフラッシュ（0.8秒かけてフワッと光って消える） */
+        /* フワッとしたフラッシュ */
         .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
         @keyframes flash-white-slow {
             0% { background-color: #000; }
@@ -50,7 +66,6 @@
                 if (status === "0") {
                     stopTimer();
                 } else {
-                    // 5, 4, 3, 2, 1など、送られた数字をそのまま分として開始
                     const mins = parseInt(status);
                     if (!isNaN(mins) && mins > 0) start(mins * 60);
                 }
@@ -83,7 +98,6 @@
             timeLeft--;
             const currentMin = Math.ceil(timeLeft / 60);
 
-            // 毎分（5分, 4分...）の切り替わりでフワッとフラッシュ
             if (currentMin > 0 && currentMin !== lastMinute) {
                 triggerFlash();
                 lastMinute = currentMin;
@@ -92,7 +106,6 @@
             if(timeLeft > 30) {
                 document.getElementById('timer-num').innerText = currentMin;
             } else if (timeLeft <= 30 && timeLeft > 0) {
-                // 30秒前のフラッシュは1回だけ
                 if (timeLeft === 30) triggerFlash();
                 document.getElementById('label').style.display = 'none';
                 document.getElementById('main-timer').style.display = 'none';
@@ -103,21 +116,16 @@
         }, 1000);
     }
 
-    // 終了時の処理：30秒の暗転を挟む
     function finishSequence() {
         clearInterval(timerId);
         timerId = null;
-        
-        // 全て隠して真っ暗にする
         document.getElementById('timer-container').style.display = 'none';
         document.getElementById('standby-image').style.display = 'none';
-        
-        // 30秒後に待機画像を表示
         setTimeout(() => {
-            if (!timerId) { // 新しいタイマーが始まっていない場合のみ
+            if (!timerId) {
                 document.getElementById('standby-image').style.display = 'block';
             }
-        }, 30000); // 30秒
+        }, 30000);
     }
 
     function stopTimer() {
@@ -130,7 +138,7 @@
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("アップデート完了！\n・フワッとしたフラッシュ\n・終了後30秒の暗転\nを追加しました。");
+        alert("デザインを細身にアップデートしました。");
     }
 </script>
 </body>
