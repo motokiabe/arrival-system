@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Refined White)</title>
+    <title>到着案内 Pro (Elegant Chime)</title>
     <style>
         body { 
             margin: 0; 
@@ -38,7 +38,6 @@
             vertical-align: baseline;
         }
         
-        /* 文言変更：白、サイズを少し縮小 */
         #sub-message { 
             font-size: 4.5rem; 
             font-weight: 100; 
@@ -64,7 +63,8 @@
             <div id="sub-message">まもなく到着します</div>
         </div>
     </div>
-    <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+    
+    <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"></audio>
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
@@ -107,7 +107,13 @@
         
         document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
         
-        document.getElementById('chime').play().catch(()=>{});
+        // 5分（300秒）開始の時だけエレガントな音を鳴らす
+        if (sec === 300) {
+            const chime = document.getElementById('chime');
+            chime.currentTime = 0;
+            chime.play().catch(()=>{});
+        }
+        
         triggerFlash();
 
         if(timerId) clearInterval(timerId);
@@ -123,7 +129,6 @@
             if(timeLeft > 30) {
                 document.getElementById('main-timer').innerHTML = `${currentMin}<span class="unit">分</span>`;
             } else if (timeLeft <= 30 && timeLeft > 0) {
-                if (timeLeft === 30) triggerFlash();
                 document.getElementById('label').style.display = 'none';
                 document.getElementById('main-timer').style.display = 'none';
                 document.getElementById('sub-message').style.display = 'block';
@@ -155,7 +160,7 @@
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("文言・色・サイズを最終調整しました。");
+        alert("5分前のみエレガントなチャイムが鳴るように設定しました。");
     }
 </script>
 </body>
