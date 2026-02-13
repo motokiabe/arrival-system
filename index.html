@@ -2,30 +2,48 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Slim & Large)</title>
+    <title>到着案内 Pro (Fine Balance)</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        /* iOS/iPadOS標準の「Hiragino Sans (W0/W1)」を指定し、
+           漢字も極細になるように調整しました
+        */
+        body { 
+            margin: 0; 
+            background-color: #000; 
+            color: #fff; 
+            font-family: "Hiragino Sans", "W1", "Hiragino Kaku Gothic ProN", sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         
-        /* ラベル：さらに細く */
-        #label { font-size: 3.5rem; color: #aaa; margin-bottom: 0; font-weight: 200; }
-        
-        /* タイマー数字：極細（100）にしてサイズをアップ */
-        #main-timer { 
-            font-size: 22rem; 
+        /* ラベル：漢字も細く */
+        #label { 
+            font-size: 3rem; 
+            color: #aaa; 
+            margin-bottom: 0; 
             font-weight: 100; /* 極細 */
-            line-height: 0.9; 
-            letter-spacing: -5px; /* 文字間を少し詰めてスタイリッシュに */
         }
         
-        /* まもなく到着です：黄色・細身 */
+        /* タイマー数字と「分」：太さを統一 */
+        #main-timer { 
+            font-size: 20rem; 
+            font-weight: 100; /* 極細 */
+            line-height: 1; 
+            letter-spacing: -2px;
+        }
+        
+        /* まもなく到着です：黄色・細字 */
         #sub-message { 
-            font-size: 7rem; 
-            font-weight: 200; 
+            font-size: 6rem; 
+            font-weight: 100; /* 極細 */
             color: #ffff00; 
             display: none; 
-            letter-spacing: 2px;
+            letter-spacing: 4px;
         }
 
         /* フワッとしたフラッシュ */
@@ -138,7 +156,7 @@
 
     function startChecking() {
         setInterval(check, 2000); 
-        alert("デザインを細身にアップデートしました。");
+        alert("漢字と数字の太さを細身に統一しました。");
     }
 </script>
 </body>
