@@ -21,6 +21,7 @@
 <script>
     let timeLeft = 300; 
     let timerId = null;
+    let lastCount = -1; // 前回の信号数
 
     function updateDisplay() {
         const minutes = Math.floor(timeLeft / 60);
@@ -44,26 +45,30 @@
         }, 1000);
     }
 
-    // iPhoneからの信号（履歴）があるかチェックする
+    // 信号があるかチェックする
     async function check() {
+        // セキュリティ制限を受けにくい「件数確認」URLを使用
         const url = 'https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61/requests?sorting=newest';
         try {
             const res = await fetch(url);
             const data = await res.json();
             
-            // 履歴（data）が1件以上あればタイマー始動
-            if (data && data.data && data.data.length > 0) {
+            // data.total（これまでに届いた合計数）を監視
+            if (lastCount === -1) {
+                lastCount = data.total; // 最初の状態を記録
+            } else if (data.total > lastCount) {
+                // 件数が増えた＝新しい信号が届いた！
                 startTimer();
-                // 履歴をリセット
-                fetch('https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', { method: 'DELETE' });
+                lastCount = data.total; // 新しい件数で上書き
             }
-        } catch (e) {}
+        } catch (e) {
+            console.log("信号確認中...");
+        }
     }
 
     function ready() {
         document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
-        // 1秒ごとに信号を確認
-        setInterval(check, 1000);
+        setInterval(check, 1500); // 1.5秒ごとにチェック
     }
 
     updateDisplay();
