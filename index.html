@@ -2,19 +2,52 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Audio Fixed)</title>
+    <title>到着案内 Pro (Elegant Final)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
-        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; }
-        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; }
-        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
-        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
+        
+        #label { 
+            font-size: 2.5rem; 
+            color: #888; 
+            margin-bottom: -1rem; 
+            font-weight: 100;
+        }
+        
+        #main-timer { 
+            font-size: 22rem; 
+            font-weight: 100;
+            line-height: 1; 
+            letter-spacing: -5px;
+        }
+
+        .unit {
+            font-size: 8rem; 
+            margin-left: 0.5rem;
+            vertical-align: baseline;
+        }
+        
+        /* まもなく到着します：白、サイズ控えめ、フェードアニメーション */
+        #sub-message { 
+            font-size: 4.5rem; 
+            font-weight: 100; 
+            color: #ffffff; 
+            display: none; 
+            letter-spacing: 2px;
+            animation: breathe 4s ease-in-out infinite; /* 4秒かけてゆっくり深呼吸するように点滅 */
+        }
+
+        /* 透過率をなだらかに変化させるアニメーション */
+        @keyframes breathe {
+            0% { opacity: 0.2; }
+            50% { opacity: 1.0; }
+            100% { opacity: 0.2; }
+        }
+
         .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
         @keyframes flash-white-slow { 0% { background-color: #000; } 40% { background-color: #fff; } 100% { background-color: #000; } }
         
-        /* 起動ボタン */
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
         #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
     </style>
@@ -42,19 +75,13 @@
     let lastStatus = "0";
     let lastMinute = -1;
 
-    // ボタンを押した時の処理
     function setupAudio() {
         const chime = document.getElementById('chime');
-        
-        // とにかく一回鳴らしてみる（成否に関わらず次へ進む）
         chime.play().then(() => {
             chime.pause();
             chime.currentTime = 0;
-        }).catch(e => {
-            console.log("Audio may be missing or blocked, but proceeding...");
-        });
+        }).catch(e => { console.log("Audio ready"); });
 
-        // ボタン画面を消して監視を開始
         document.getElementById('start-overlay').style.display = 'none';
         setInterval(check, 2000);
     }
@@ -84,9 +111,11 @@
         document.getElementById('sub-message').style.display = 'none';
         document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
         
+        // 5分(300秒)の時に音を鳴らす
         if (sec === 300) {
             const chime = document.getElementById('chime');
-            chime.play().catch(e => console.log("Play failed: Audio file might be missing."));
+            chime.currentTime = 0;
+            chime.play().catch(e => console.log("Chime error"));
         }
         
         triggerFlash();
