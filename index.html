@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>後部座席案内システム Pro</title>
+    <title>案内システム Pro</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Kaku Gothic ProN", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         #timer-container { display: none; }
-        #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; letter-spacing: 0.2rem; }
+        #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; }
         #main-timer { font-size: 25rem; font-weight: bold; line-height: 1; }
         #unit { font-size: 8rem; margin-left: 1rem; color: #eee; }
         #sub-message { font-size: 8.5rem; font-weight: bold; color: #ffff00; display: none; white-space: nowrap; animation: pulse 1.5s infinite; }
-        
         .flash { animation: flash-bg 0.5s ease-out 1; }
         @keyframes flash-bg { 0% { background-color: #fff; } 100% { background-color: #000; } }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
 <body onclick="ready()">
-    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png" alt="Standby">
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
@@ -35,38 +34,31 @@
 <script>
     let timeLeft = 0; 
     let timerId = null;
-    let lastSignalTime = 0; // 同じ命令の連発を防止
+    let lastSignalTime = 0;
     const chime = document.getElementById('chime');
 
     function updateDisplay() {
         const m = Math.ceil(timeLeft / 60);
-        const label = document.getElementById('label');
-        const mainArea = document.getElementById('main-timer');
-        const subMsg = document.getElementById('sub-message');
-
         if (timeLeft > 30) {
             document.getElementById('timer-num').innerText = m;
-            label.style.display = 'block';
-            mainArea.style.display = 'block';
-            subMsg.style.display = 'none';
+            document.getElementById('label').style.display = 'block';
+            document.getElementById('main-timer').style.display = 'block';
+            document.getElementById('sub-message').style.display = 'none';
         } else {
-            label.style.display = 'none';
-            mainArea.style.display = 'none';
-            subMsg.style.display = 'block';
+            document.getElementById('label').style.display = 'none';
+            document.getElementById('main-timer').style.display = 'none';
+            document.getElementById('sub-message').style.display = 'block';
         }
     }
 
     function startTimer(seconds, signalTime) {
-        // 同じ信号（時間）を受け取った場合は無視
-        if (lastSignalTime === signalTime) return;
+        if (lastSignalTime >= signalTime) return; // 古い信号や重複は無視
         lastSignalTime = signalTime;
 
-        // 動作ギミック
         document.body.classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 500);
         chime.play().catch(() => {});
 
-        // タイマーリセット
         if (timerId) clearInterval(timerId);
         timeLeft = seconds;
         document.getElementById('standby-image').style.display = 'none';
@@ -88,19 +80,17 @@
     }
 
     async function checkSignal() {
-        // キャッシュを絶対にさせないためのランダムクエリ
-        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?nocache=${Math.random()}`;
+        // APIを叩く（?t=でキャッシュを完全回避）
+        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${Date.now()}`;
         try {
-            const res = await fetch(url, { cache: "no-store" });
+            const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
             const data = await res.json();
             const content = JSON.parse(atob(data.content));
             
             if (content.status === 'start5') startTimer(300, content.time);
             else if (content.status === 'start3') startTimer(180, content.time);
             else if (content.status === 'waiting') finish();
-        } catch (e) {
-            console.error("Connection lost");
-        }
+        } catch (e) {}
     }
 
     function ready() {
