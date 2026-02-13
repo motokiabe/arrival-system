@@ -8,13 +8,13 @@
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #display-area { text-align: center; }
         #message { font-size: 3rem; margin-bottom: 20px; color: #aaa; }
-        #timer { font-size: 12rem; font-weight: bold; font-variant-numeric: tabular-nums; }
+        #timer { font-size: 12rem; font-weight: bold; }
     </style>
 </head>
 <body onclick="startCheck()">
 
 <div id="display-area">
-    <div id="message">画面を一度タップして<br>待機してください</div>
+    <div id="message">画面をタップして<br>待機してください</div>
     <div id="timer">05:00</div>
 </div>
 
@@ -45,22 +45,24 @@
         }, 1000);
     }
 
-    // ★ここが最重要！あなたのIDに完全固定しました★
     async function checkSignal() {
+        // 信号を確認するURL
         const url = 'https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61/requests?sorting=newest';
 
         try {
             const response = await fetch(url);
             const data = await response.json();
 
-            // 履歴が1件以上あれば実行
-            if (data && data.data && data.data.length > 0) {
+            // 「ずらっと出た文字」の中にデータ（リクエスト）があるか確認
+            if (data && data.total > 0) { 
+                console.log("信号を検知しました！");
                 startTimer();
-                // 実行したら、中継所の履歴を消してリセットする
+                
+                // 履歴を削除してリセット（これが重要）
                 await fetch('https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', { method: 'DELETE' });
             }
         } catch (e) {
-            console.log("信号待ち...");
+            console.log("チェック中...");
         }
     }
 
@@ -68,8 +70,8 @@
         if(isChecking) return;
         isChecking = true;
         document.getElementById('message').innerText = "待機中：iPhoneのボタンを押してください";
-        // 1秒ごとに見に行くようにスピードアップしました
-        setInterval(checkSignal, 1000);
+        // 0.5秒おきにチェックするようにさらに加速
+        setInterval(checkSignal, 500);
     }
 
     updateDisplay();
