@@ -11,26 +11,29 @@
         #display-area { text-align: center; width: 100%; z-index: 10; }
         #timer-container { display: none; }
         
-        /* 「到着まで」のラベル */
-        #label { font-size: 3rem; color: #ccc; margin-bottom: 10px; letter-spacing: 0.2rem; }
-        
-        /* 通常タイマー（分） */
-        #main-timer { font-size: 22rem; font-weight: bold; line-height: 1; }
+        #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; letter-spacing: 0.2rem; }
+        #main-timer { font-size: 25rem; font-weight: bold; line-height: 1; }
         #unit { font-size: 8rem; margin-left: 1rem; color: #eee; }
         
-        /* ラスト30秒：一行に収まるサイズに調整 */
         #sub-message { 
-            font-size: 7.5rem; 
+            font-size: 8.5rem; 
             font-weight: bold; 
-            color: #ff3b30; 
+            color: #ffff00; 
             display: none; 
-            white-space: nowrap; /* 絶対に改行させない */
-            animation: pulse 2s infinite; /* ゆっくり点滅 */
+            white-space: nowrap; 
+            animation: pulse 1.5s infinite; 
+        }
+
+        /* 視覚ギミック：フラッシュ1回 */
+        .flash { animation: flash-bg 0.5s ease-out 1; }
+        @keyframes flash-bg {
+            0% { background-color: #fff; }
+            100% { background-color: #000; }
         }
 
         @keyframes pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.7; }
             100% { opacity: 1; }
         }
     </style>
@@ -43,27 +46,32 @@
             <div id="label">到着まで</div>
             <div id="timer-box">
                 <div id="main-timer"><span id="timer-num"></span><span id="unit">分</span></div>
-                <div id="sub-message">まもなく到着します。</div>
+                <div id="sub-message">まもなく到着です</div>
             </div>
         </div>
     </div>
 
+    <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
     <script>
     let timeLeft = 0; 
     let timerId = null;
+    const chime = document.getElementById('chime');
 
     function updateDisplay() {
         const m = Math.ceil(timeLeft / 60); 
         const numEl = document.getElementById('timer-num');
         const mainArea = document.getElementById('main-timer');
         const subMsg = document.getElementById('sub-message');
+        const label = document.getElementById('label');
 
         if (timeLeft > 30) {
             numEl.innerText = m;
+            label.style.display = 'block';
             mainArea.style.display = 'block';
             subMsg.style.display = 'none';
         } else {
-            // 30秒以下の表示切り替え
+            label.style.display = 'none';
             mainArea.style.display = 'none';
             subMsg.style.display = 'block';
         }
@@ -71,10 +79,19 @@
 
     function startTimer(seconds) {
         if (timerId !== null) return;
+        
+        // 1回パッと光る
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 500);
+
+        // 音を鳴らす
+        chime.play().catch(e => console.log("Audio play failed"));
+
         timeLeft = seconds;
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
         updateDisplay();
+        
         timerId = setInterval(() => {
             timeLeft--;
             if (timeLeft > 0) {
@@ -106,6 +123,10 @@
     }
 
     function ready() {
+        chime.play().then(() => {
+            chime.pause();
+            chime.currentTime = 0;
+        });
         setInterval(checkSignal, 2000); 
         alert("準備完了！");
     }
