@@ -2,109 +2,77 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>案内システム Pro Ver.4</title>
+    <title>到着案内 Pro (Stable)</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Kaku Gothic ProN", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         #timer-container { display: none; }
-        #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; letter-spacing: 0.2rem; }
+        #label { font-size: 3.5rem; color: #ccc; margin-bottom: 10px; }
         #main-timer { font-size: 25rem; font-weight: bold; line-height: 1; }
-        #unit { font-size: 8rem; margin-left: 1rem; color: #eee; }
-        #sub-message { font-size: 8.5rem; font-weight: bold; color: #ffff00; display: none; white-space: nowrap; animation: pulse 1.5s infinite; }
-        
-        .flash { animation: flash-bg 0.5s ease-out 1; }
-        @keyframes flash-bg { 0% { background-color: #fff; } 100% { background-color: #000; } }
+        #sub-message { font-size: 8.5rem; font-weight: bold; color: #ffff00; display: none; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
-<body onclick="ready()">
+<body onclick="startChecking()">
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
-            <div id="timer-box">
-                <div id="main-timer"><span id="timer-num"></span><span id="unit">分</span></div>
-                <div id="sub-message">まもなく到着です</div>
-            </div>
+            <div id="main-timer"><span id="timer-num"></span>分</div>
+            <div id="sub-message">まもなく到着です</div>
         </div>
     </div>
-    <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+    <audio id="chime" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    let timeLeft = 0; 
+    const GAS_URL = "★ここに作成したURLを貼る★"; // 後ほど作成
+    let timeLeft = 0;
     let timerId = null;
-    let lastSignalTime = 0;
-    const chime = document.getElementById('chime');
+    let isWorking = false;
 
-    function updateDisplay() {
-        const m = Math.ceil(timeLeft / 60);
-        const label = document.getElementById('label');
-        const mainArea = document.getElementById('main-timer');
-        const subMsg = document.getElementById('sub-message');
-
-        if (timeLeft > 30) {
-            document.getElementById('timer-num').innerText = m;
-            label.style.display = 'block';
-            mainArea.style.display = 'block';
-            subMsg.style.display = 'none';
-        } else {
-            label.style.display = 'none';
-            mainArea.style.display = 'none';
-            subMsg.style.display = 'block';
-        }
+    async function check() {
+        try {
+            const res = await fetch(GAS_URL);
+            const status = await res.text();
+            if (status === "5" && !isWorking) start(300);
+            else if (status === "3" && !isWorking) start(180);
+            else if (status === "0") reset();
+        } catch (e) {}
     }
 
-    function startTimer(seconds, signalTime) {
-        if (lastSignalTime >= signalTime) return;
-        lastSignalTime = signalTime;
-
-        document.body.classList.add('flash');
-        setTimeout(() => document.body.classList.remove('flash'), 500);
-        chime.play().catch(() => {});
-
-        if (timerId) clearInterval(timerId);
-        timeLeft = seconds;
+    function start(sec) {
+        isWorking = true;
+        timeLeft = sec;
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('timer-container').style.display = 'block';
-        updateDisplay();
-        
+        document.getElementById('chime').play();
+        if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
-            if (timeLeft > 0) updateDisplay();
-            else finish();
+            const m = Math.ceil(timeLeft / 60);
+            if(timeLeft > 30) {
+                document.getElementById('timer-num').innerText = m;
+            } else {
+                document.getElementById('main-timer').style.display = 'none';
+                document.getElementById('sub-message').style.display = 'block';
+            }
+            if(timeLeft <= 0) reset();
         }, 1000);
     }
 
-    function finish() {
+    function reset() {
+        isWorking = false;
         clearInterval(timerId);
-        timerId = null;
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('timer-container').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'block';
+        document.getElementById('sub-message').style.display = 'none';
     }
 
-    async function checkSignal() {
-        // APIから生データを直接取得（キャッシュ破壊用クエリ付与）
-        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?cb=${Date.now()}`;
-        try {
-            const res = await fetch(url, {
-                headers: { 'Accept': 'application/vnd.github.v3.raw', 'Cache-Control': 'no-cache' }
-            });
-            const content = await res.json();
-            
-            if (content.status === 'start5') startTimer(300, content.time);
-            else if (content.status === 'start3') startTimer(180, content.time);
-            else if (content.status === 'waiting') finish();
-        } catch (e) {
-            console.error("Connection Check...");
-        }
-    }
-
-    function ready() {
-        chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
-        setInterval(checkSignal, 1000); 
-        alert("案内システム起動中");
+    function startChecking() {
+        setInterval(check, 2000);
+        alert("システム稼働中");
     }
 </script>
 </body>
