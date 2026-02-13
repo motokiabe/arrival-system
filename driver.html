@@ -7,6 +7,7 @@
     <style>
         body { text-align:center; padding-top:30px; background:#f4f4f4; font-family:sans-serif; }
         .btn { width:85%; padding:30px; font-size:22px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+        .btn:active { background:#555 !important; transform: scale(0.98); }
         .btn-5 { background:#007aff; }
         .btn-3 { background:#34c759; }
         .btn-reset { background:#8e8e93; }
@@ -21,7 +22,7 @@
     async function send(command) {
         let token = localStorage.getItem('gh_token');
         if (!token) {
-            token = prompt("新しいGitHubトークンを入力してください");
+            token = prompt("GitHubトークンを入力してください");
             if (token) localStorage.setItem('gh_token', token);
             else return;
         }
@@ -36,15 +37,18 @@
             const fileData = await res.json();
             const content = btoa(JSON.stringify({status: command, time: new Date().getTime()}));
 
-            const update = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
+            await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: "update", content: content, sha: fileData.sha })
             });
-
-            if (update.ok) alert("送信完了");
-            else alert("エラー: トークンを再確認してください");
-        } catch (e) { alert("接続エラー: " + e); }
+            
+            // alertを削除しました。代わりにコンソールにのみ記録します。
+            console.log("送信成功: " + command);
+            
+        } catch (e) {
+            alert("接続エラー: " + e); // エラー時のみ通知します
+        }
     }
     </script>
 </body>
