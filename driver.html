@@ -3,23 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>送信パネル</title>
+    <title>送信パネル Pro</title>
     <style>
-        body { text-align:center; padding-top:30px; background:#f4f4f4; font-family:sans-serif; }
-        .btn { width:85%; padding:30px; font-size:22px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:20px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-        .btn:active { background:#555 !important; transform: scale(0.98); }
+        body { text-align:center; padding-top:30px; background:#333; font-family:sans-serif; transition: 0.3s; }
+        .btn { width:85%; padding:35px; font-size:24px; color:white; border:none; border-radius:20px; font-weight:bold; margin-bottom:25px; box-shadow:0 6px 15px rgba(0,0,0,0.3); }
+        .btn:active { transform: scale(0.95); opacity: 0.8; }
         .btn-5 { background:#007aff; }
         .btn-3 { background:#34c759; }
         .btn-reset { background:#8e8e93; }
+        #status { color: #aaa; font-size: 14px; margin-top: 10px; }
     </style>
 </head>
 <body>
     <button onclick="send('start5')" class="btn btn-5">到着 5分前</button>
     <button onclick="send('start3')" class="btn btn-3">到着 3分前</button>
     <button onclick="send('waiting')" class="btn btn-reset">待機画面に戻す</button>
+    <div id="status">待機中</div>
 
     <script>
     async function send(command) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = "送信中...";
+        
         let token = localStorage.getItem('gh_token');
         if (!token) {
             token = prompt("GitHubトークンを入力してください");
@@ -31,23 +36,33 @@
         const repo = 'arrival-system';
         
         try {
+            // 現在のファイルのSHAを取得
             const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
-                headers: { 'Authorization': `token ${token}` }
+                headers: { 'Authorization': `token ${token}`, 'Cache-Control': 'no-cache' }
             });
             const fileData = await res.json();
+            
+            // 書き込み
             const content = btoa(JSON.stringify({status: command, time: new Date().getTime()}));
-
-            await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
+            const update = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: "update", content: content, sha: fileData.sha })
             });
-            
-            // alertを削除しました。代わりにコンソールにのみ記録します。
-            console.log("送信成功: " + command);
-            
+
+            if (update.ok) {
+                // 成功：画面を緑にしてバイブ
+                document.body.style.backgroundColor = "#1a4d2e";
+                statusEl.innerText = "送信成功 ✓";
+                if (navigator.vibrate) navigator.vibrate(200); 
+                setTimeout(() => { document.body.style.backgroundColor = "#333"; }, 1000);
+            } else {
+                throw new Error();
+            }
         } catch (e) {
-            alert("接続エラー: " + e); // エラー時のみ通知します
+            document.body.style.backgroundColor = "#7a1a1a";
+            statusEl.innerText = "エラー: 再試行してください";
+            alert("送信失敗。トークンが無効か通信エラーです。");
         }
     }
     </script>
