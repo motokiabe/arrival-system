@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>案内システム Pro</title>
+    <title>案内システム Pro Ver.3</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Kaku Gothic ProN", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; }
         #timer-container { display: none; }
@@ -39,28 +39,22 @@
 
     function updateDisplay() {
         const m = Math.ceil(timeLeft / 60);
-        const label = document.getElementById('label');
-        const mainArea = document.getElementById('main-timer');
-        const subMsg = document.getElementById('sub-message');
-
         if (timeLeft > 30) {
             document.getElementById('timer-num').innerText = m;
-            label.style.display = 'block';
-            mainArea.style.display = 'block';
-            subMsg.style.display = 'none';
+            document.getElementById('label').style.display = 'block';
+            document.getElementById('main-timer').style.display = 'block';
+            document.getElementById('sub-message').style.display = 'none';
         } else {
-            label.style.display = 'none';
-            mainArea.style.display = 'none';
-            subMsg.style.display = 'block';
+            document.getElementById('label').style.display = 'none';
+            document.getElementById('main-timer').style.display = 'none';
+            document.getElementById('sub-message').style.display = 'block';
         }
     }
 
     function startTimer(seconds, signalTime) {
-        // 同じ信号（古い時間）なら無視
         if (lastSignalTime >= signalTime) return;
         lastSignalTime = signalTime;
 
-        // ギミック発動
         document.body.classList.add('flash');
         setTimeout(() => document.body.classList.remove('flash'), 500);
         chime.play().catch(() => {});
@@ -86,29 +80,33 @@
     }
 
     async function checkSignal() {
-        // 【最重要】API経由で、かつタイムスタンプを付与してキャッシュを強制排除
-        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${new Date().getTime()}`;
+        // APIを直接叩き、かつブラウザキャッシュを無効化するヘッダーを付与
+        const url = `https://api.github.com/repos/motokiabe/arrival-system/contents/signal.json?t=${Date.now()}`;
         try {
-            const res = await fetch(url, { 
+            const res = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
                 cache: 'no-store',
-                headers: { 'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT' } 
+                headers: {
+                    'Accept': 'application/vnd.github.v3.raw', // 生データを直接要求
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
             });
-            const data = await res.json();
-            const content = JSON.parse(atob(data.content));
+            const content = await res.json();
             
             if (content.status === 'start5') startTimer(300, content.time);
             else if (content.status === 'start3') startTimer(180, content.time);
             else if (content.status === 'waiting') finish();
         } catch (e) {
-            console.error("Fetch failed");
+            console.error("Fetch Error");
         }
     }
 
     function ready() {
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
-        // チェック間隔を1秒に
-        setInterval(checkSignal, 1000); 
-        alert("システム稼働中！\niPhoneからボタンを押してください。");
+        setInterval(checkSignal, 1000); // 1秒おきにチェック
+        alert("案内システム起動中");
     }
 </script>
 </body>
