@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>送信パネル</title>
 </head>
-<body style="text-align:center; padding-top:100px; background:#f4f4f4;">
-    <button onclick="send()" style="width:80%; padding:30px; font-size:24px; background:#007aff; color:white; border:none; border-radius:15px; font-weight:bold;">到着5分前を知らせる</button>
+<body style="text-align:center; padding-top:100px; background:#f4f4f4; font-family:sans-serif;">
+    <button onclick="send()" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border:none; border-radius:20px; font-weight:bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">到着5分前を知らせる</button>
 
     <script>
         function send() {
-            // Webhook.siteに「到着したよ」という記録を残すだけの単純な命令
-            fetch('https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', {
-                method: 'POST',
-                mode: 'no-cors'
+            const url = 'https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61';
+            
+            fetch(url, { method: 'POST', mode: 'no-cors' })
+            .then(() => {
+                alert("信号を送信しました！");
             });
-            alert("信号を送信しました！");
         }
     </script>
 </body>
