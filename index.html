@@ -4,56 +4,78 @@
     <meta charset="UTF-8">
     <title>後部座席案内システム</title>
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #display-area { text-align: center; }
-        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; }
-        #timer { font-size: 15rem; font-weight: bold; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Helvetica Neue", Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        #timer-container { display: none; z-index: 10; text-align: center; }
+        #label { font-size: 4rem; color: #aaa; margin-bottom: 20px; }
+        #main-timer { font-size: 30rem; font-weight: bold; line-height: 1; }
+        #unit { font-size: 10rem; margin-left: 20px; }
+        #sub-message { font-size: 7rem; font-weight: bold; color: #ff3b30; display: none; padding: 0 40px; line-height: 1.3; }
     </style>
 </head>
 <body onclick="ready()">
-    <div id="display-area">
-        <div id="message">画面を一度タップして<br>待機してください</div>
-        <div id="timer">05:00</div>
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/standby.png" alt="Standby">
+    <div id="timer-container">
+        <div id="label">到着まで</div>
+        <div id="timer-box">
+            <div id="main-timer"><span id="timer-num"></span><span id="unit">分</span></div>
+            <div id="sub-message">まもなく到着します。</div>
+        </div>
     </div>
 
 <script>
-    let timeLeft = 300; 
+    let timeLeft = 0; 
     let timerId = null;
 
     function updateDisplay() {
-        const m = Math.floor(timeLeft / 60);
-        const s = timeLeft % 60;
-        document.getElementById('timer').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-
-    function startTimer() {
-        if (timerId !== null) return;
-        document.getElementById('message').innerText = "まもなく到着します";
-        document.getElementById('message').style.color = "#fff";
-        timerId = setInterval(() => {
-            if (timeLeft > 0) { timeLeft--; updateDisplay(); }
-            else { clearInterval(timerId); document.getElementById('message').innerText = "到着しました"; }
-        }, 1000);
-    }
-
-    async function checkSignal() {
-        const username = 'motokiabe'; 
-        const url = `https://api.github.com/repos/${username}/arrival-system/contents/signal.json?t=` + new Date().getTime();
-
-        try {
-            const res = await fetch(url);
-            const fileData = await res.json();
-            const content = JSON.parse(atob(fileData.content));
-            if (content.status === 'start') {
-                startTimer();
-            }
-        } catch (e) {
-            console.log("チェック中...");
+        const m = Math.ceil(timeLeft / 60); 
+        const numEl = document.getElementById('timer-num');
+        const mainArea = document.getElementById('main-timer');
+        const subMsg = document.getElementById('sub-message');
+        if (timeLeft > 30) {
+            numEl.innerText = m;
+            mainArea.style.display = 'block';
+            subMsg.style.display = 'none';
+        } else {
+            mainArea.style.display = 'none';
+            subMsg.style.display = 'block';
         }
     }
 
+    function startTimer(seconds) {
+        if (timerId !== null) return;
+        timeLeft = seconds;
+        document.getElementById('standby-image').style.display = 'none';
+        document.getElementById('timer-container').style.display = 'block';
+        updateDisplay();
+        timerId = setInterval(() => {
+            timeLeft--;
+            if (timeLeft > 0) updateDisplay();
+            else finish();
+        }, 1000);
+    }
+
+    function finish() {
+        clearInterval(timerId);
+        timerId = null;
+        document.getElementById('standby-image').style.display = 'block';
+        document.getElementById('timer-container').style.display = 'none';
+        // 注意: この版では自動リセットを外し、iPhone側で行うようにします
+    }
+
+    async function checkSignal() {
+        // キャッシュを避けるためURLに時間を付与
+        const url = `https://raw.githubusercontent.com/motokiabe/arrival-system/main/signal.json?t=${new Date().getTime()}`;
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'start5') startTimer(300);
+            else if (data.status === 'start3') startTimer(180);
+        } catch (e) {}
+    }
+
     function ready() {
-        document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
+        document.getElementById('standby-image').style.opacity = "0.8";
         setInterval(checkSignal, 2000); 
     }
     updateDisplay();
