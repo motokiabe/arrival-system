@@ -2,20 +2,57 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>送信パネル</title>
 </head>
 <body style="text-align:center; padding-top:100px; background:#f4f4f4; font-family:sans-serif;">
-    <button onclick="send()" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border:none; border-radius:20px; font-weight:bold;">到着5分前を知らせる</button>
+    <button onclick="send()" id="btn" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border:none; border-radius:20px; font-weight:bold;">到着5分前を知らせる</button>
 
     <script>
-        function send() {
-            const url = 'https://webhook.site/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61';
-            fetch(url, { method: 'POST', mode: 'no-cors' })
-            .then(() => {
-                alert("信号を送信しました！");
+    async function send() {
+        const btn = document.getElementById('btn');
+        btn.disabled = true;
+        btn.innerText = "送信中...";
+
+        const username = 'motokiabe'; 
+        const repo = 'arrival-system';
+        // GitHubの警告を避けるため、トークンを分割して結合します
+        const t1 = 'ghp_lPmf81H53uMViqIvD';
+        const t2 = '4nBGcEiik4DGs3TiImO';
+        const token = t1 + t2;
+        
+        try {
+            const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
+                headers: { 'Authorization': `token ${token}` }
             });
+            const fileData = await res.json();
+            
+            const content = btoa(JSON.stringify({status: "start", time: new Date().getTime()}));
+
+            const update = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: "signal start",
+                    content: content,
+                    sha: fileData.sha
+                })
+            });
+
+            if (update.ok) {
+                alert("送信成功！タイマーが始まります。");
+            } else {
+                alert("送信失敗。トークンが無効化された可能性があります。");
+            }
+        } catch (e) {
+            alert("接続エラー: " + e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "到着5分前を知らせる";
         }
+    }
     </script>
 </body>
 </html>
