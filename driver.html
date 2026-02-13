@@ -4,21 +4,20 @@
     <meta charset="UTF-8">
     <title>送信パネル</title>
 </head>
-<body style="text-align:center; padding-top:100px; background:#f4f4f4; font-family:sans-serif;">
-    <button onclick="send()" id="btn" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border:none; border-radius:20px; font-weight:bold;">到着5分前を知らせる</button>
+<body style="text-align:center; padding-top:100px; background:#f4f4f4;">
+    <button onclick="send()" style="width:85%; padding:40px; font-size:24px; background:#007aff; color:white; border-radius:20px; font-weight:bold;">到着5分前を知らせる</button>
 
     <script>
     async function send() {
-        const btn = document.getElementById('btn');
-        btn.disabled = true;
-        btn.innerText = "送信中...";
+        // 初回のみトークンを聞かれます。メモしたghp_...を貼り付けてください。
+        let token = localStorage.getItem('gh_token');
+        if (!token) {
+            token = prompt("新しいGitHubトークンを入力してください");
+            if (token) localStorage.setItem('gh_token', token);
+        }
 
         const username = 'motokiabe'; 
         const repo = 'arrival-system';
-        // GitHubの警告を避けるため、トークンを分割して結合します
-        const t1 = 'ghp_lPmf81H53uMViqIvD';
-        const t2 = '4nBGcEiik4DGs3TiImO';
-        const token = t1 + t2;
         
         try {
             const res = await fetch(`https://api.github.com/repos/${username}/${repo}/contents/signal.json`, {
@@ -41,17 +40,9 @@
                 })
             });
 
-            if (update.ok) {
-                alert("送信成功！タイマーが始まります。");
-            } else {
-                alert("送信失敗。トークンが無効化された可能性があります。");
-            }
-        } catch (e) {
-            alert("接続エラー: " + e);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "到着5分前を知らせる";
-        }
+            if (update.ok) alert("送信成功！");
+            else alert("送信失敗。トークンが間違っているか、無効です。");
+        } catch (e) { alert("エラー: " + e); }
     }
     </script>
 </body>
