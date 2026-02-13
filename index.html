@@ -1,145 +1,36 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>到着案内 Pro (Audio Reset)</title>
-    <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-        #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
-        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; }
-        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; }
-        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
-        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
-        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
-        .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
-        @keyframes flash-white-slow { 0% { background-color: #000; } 40% { background-color: #fff; } 100% { background-color: #000; } }
-        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
-        #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <div id="start-overlay">
-        <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
-    </div>
-
-    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
-    <div id="display-area">
-        <div id="timer-container" style="display: none;">
-            <div id="label">到着まで</div>
-            <div id="main-timer"></div>
-            <div id="sub-message">まもなく到着します</div>
-        </div>
-    </div>
-    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+<audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto" loop></audio>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
-    let timeLeft = 0;
-    let timerId = null;
-    let lastStatus = "0";
-    let lastMinute = -1;
+    // ・・・中略（setupAudio関数のみ差し替え）・・・
 
     function setupAudio() {
         const chime = document.getElementById('chime');
-        chime.load(); // 再読み込み
-        chime.play().then(() => { 
-            chime.pause(); 
-            chime.currentTime = 0; 
-        }).catch(e => { console.log("Audio Init failed"); });
-        
-        document.getElementById('start-overlay').style.display = 'none';
-        setInterval(check, 2000);
-    }
-
-    async function check() {
-        try {
-            const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
-            const status = await res.text();
-            
-            if (status !== lastStatus) {
-                if (status === "0") {
-                    stopTimer();
-                } else {
-                    const mins = parseInt(status);
-                    if (!isNaN(mins) && mins > 0) start(mins * 60);
-                }
-                lastStatus = status;
-            }
-        } catch (e) {}
+        // 音量をほぼゼロにして「ずっと流しっぱなし」にする
+        chime.volume = 0.001; 
+        chime.play().then(() => {
+            // これで音声の「専有権」をiPadから奪い取ります
+            document.getElementById('start-overlay').style.display = 'none';
+            setInterval(check, 2000);
+        }).catch(e => alert("開始に失敗しました。もう一度タップしてください。"));
     }
 
     function start(sec) {
-        timeLeft = sec;
-        lastMinute = Math.ceil(timeLeft / 60);
-        
-        // 画面リセット
-        document.getElementById('standby-image').style.display = 'none';
-        document.getElementById('timer-container').style.display = 'block';
-        document.getElementById('main-timer').style.display = 'block';
-        document.getElementById('label').style.display = 'block';
-        document.getElementById('sub-message').style.display = 'none';
-        document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
-        
-        // 5分の時だけ再生。
+        // ・・・中略・・・
         if (sec === 300) {
             const chime = document.getElementById('chime');
-            chime.currentTime = 0;
-            chime.play().catch(e => {
-                console.log("Play failed, retrying once...");
-                chime.load();
+            chime.pause(); // 一度止めて
+            chime.currentTime = 0; // 頭に戻して
+            chime.volume = 1.0; // 音量を最大にして
+            chime.loop = false; // ループを解除して
+            chime.play(); // 鳴らす！
+            
+            // 鳴り終わったら（約5秒後）また「無音ループ待機」に戻す
+            setTimeout(() => {
+                chime.loop = true;
+                chime.volume = 0.001;
                 chime.play();
-            });
+            }, 6000);
         }
-        
-        triggerFlash();
-
-        if(timerId) clearInterval(timerId);
-        timerId = setInterval(() => {
-            timeLeft--;
-            const currentMin = Math.ceil(timeLeft / 60);
-            if (currentMin > 0 && currentMin !== lastMinute) {
-                triggerFlash();
-                lastMinute = currentMin;
-            }
-            if(timeLeft > 30) {
-                document.getElementById('main-timer').innerHTML = `${currentMin}<span class="unit">分</span>`;
-            } else if (timeLeft <= 30 && timeLeft > 0) {
-                document.getElementById('label').style.display = 'none';
-                document.getElementById('main-timer').style.display = 'none';
-                document.getElementById('sub-message').style.display = 'block';
-            } else {
-                finishSequence();
-            }
-        }, 1000);
-    }
-
-    function triggerFlash() {
-        document.body.classList.remove('flash-slow');
-        void document.body.offsetWidth;
-        document.body.classList.add('flash-slow');
-    }
-
-    function stopTimer() {
-        if(timerId) clearInterval(timerId);
-        timerId = null;
-        
-        // 【重要】0分（リセット）が押された時に、次の再生のためにオーディオをリロードしておく
-        const chime = document.getElementById('chime');
-        chime.load(); 
-        
-        document.getElementById('standby-image').style.display = 'block';
-        document.getElementById('timer-container').style.display = 'none';
-        lastStatus = "0";
-    }
-
-    function finishSequence() {
-        clearInterval(timerId);
-        timerId = null;
-        document.getElementById('timer-container').style.display = 'none';
-        document.getElementById('standby-image').style.display = 'none';
-        setTimeout(() => { if (!timerId) document.getElementById('standby-image').style.display = 'block'; }, 30000);
+        // ・・・以下略・・・
     }
 </script>
-</body>
-</html>
