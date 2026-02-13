@@ -11,17 +11,14 @@
         #timer { font-size: 12rem; font-weight: bold; }
     </style>
 </head>
-<body onclick="startCheck()">
-
-<div id="display-area">
-    <div id="message">画面を一度タップして<br>待機してください</div>
+<body onclick="startTimer()"> <div id="display-area">
+    <div id="message">テスト中：ここをタップして<br>タイマーが動くか確認してください</div>
     <div id="timer">05:00</div>
 </div>
 
 <script>
     let timeLeft = 300; 
     let timerId = null;
-    let isChecking = false;
 
     function updateDisplay() {
         const minutes = Math.floor(timeLeft / 60);
@@ -45,34 +42,17 @@
         }, 1000);
     }
 
-    async function checkSignal() {
-        // ID: 9f633dfd-a8f5-4360-ab3b-8c8d2c511b61
-        const url = 'https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61/requests';
+    // ★ Webhookを介さず、URLの末尾に「?start=true」がついたら動く仕組み ★
+    if (window.location.search.includes('start=true')) {
+        startTimer();
+    }
 
-        try {
-            const response = await fetch(url);
-            const rawData = await response.text(); // 文字列として全部受け取る
-
-            // 文字の中に "request" という言葉が含まれているかチェック
-            // （履歴があれば必ずこの言葉が含まれます）
-            if (rawData.includes("uuid")) { 
-                console.log("信号をキャッチ！");
-                startTimer();
-                
-                // 履歴をリセット
-                fetch('https://webhook.site/token/9f633dfd-a8f5-4360-ab3b-8c8d2c511b61', { method: 'DELETE' });
-            }
-        } catch (e) {
-            console.log("通信エラー再試行中...");
+    // 1秒ごとにURLをチェック（iPhoneからの指示を待つ）
+    setInterval(() => {
+        if (window.location.hash === '#start') {
+            startTimer();
         }
-    }
-
-    function startCheck() {
-        if(isChecking) return;
-        isChecking = true;
-        document.getElementById('message').innerText = "待機中：iPhoneのボタンを押してください";
-        setInterval(checkSignal, 1000);
-    }
+    }, 1000);
 
     updateDisplay();
 </script>
