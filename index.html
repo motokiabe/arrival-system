@@ -5,17 +5,15 @@
     <title>後部座席案内システム</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #display-area { text-align: center; }
-        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; }
-        #timer { font-size: 15rem; font-weight: bold; }
+        #message { font-size: 3.5rem; margin-bottom: 20px; color: #aaa; text-align: center; }
+        #timer { font-size: 15rem; font-weight: bold; text-align: center; }
     </style>
 </head>
 <body onclick="ready()">
-
-<div id="display-area">
-    <div id="message">画面を一度タップして<br>待機してください</div>
-    <div id="timer">05:00</div>
-</div>
+    <div>
+        <div id="message">画面を一度タップして<br>待機してください</div>
+        <div id="timer">05:00</div>
+    </div>
 
 <script>
     let timeLeft = 300; 
@@ -38,21 +36,16 @@
     }
 
     async function checkSignal() {
-        const username = 'motokiabe'; 
-        // キャッシュ（古いデータ）を読まないように毎回URLを変える
-        const url = `https://raw.githubusercontent.com/${username}/arrival-system/main/signal.json?t=` + new Date().getTime();
-
+        const url = `https://raw.githubusercontent.com/motokiabe/arrival-system/main/signal.json?t=${new Date().getTime()}`;
         try {
             const res = await fetch(url);
             const data = await res.json();
-            if (data.status === 'start') {
-                startTimer();
-            }
+            if (data.status === 'start') startTimer();
         } catch (e) {}
     }
 
     function ready() {
-        document.getElementById('message').innerText = "待機中：iPhoneの操作を待っています";
+        document.getElementById('message').innerText = "待機中...";
         setInterval(checkSignal, 2000); 
     }
     updateDisplay();
