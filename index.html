@@ -2,79 +2,30 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Modern Edition)</title>
+    <title>到着案内 Pro (Connection Fixed)</title>
     <style>
-        body { 
-            margin: 0; 
-            background-color: #000; 
-            color: #fff; 
-            font-family: "Hiragino Sans", "W1", sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            overflow: hidden; 
-        }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
-        
-        #label { 
-            font-size: 2.5rem; 
-            color: #888; 
-            margin-bottom: -1rem; 
-            font-weight: 100;
-        }
-        
-        #main-timer { 
-            font-size: 22rem; 
-            font-weight: 100; 
-            line-height: 1; 
-            letter-spacing: -5px; 
-        }
-
-        .unit { 
-            font-size: 8rem; 
-            margin-left: 0.5rem; 
-            vertical-align: baseline; 
-        }
-        
-        #sub-message { 
-            font-size: 4.5rem; 
-            font-weight: 100; 
-            color: #ffffff; 
-            display: none; 
-            letter-spacing: 2px;
-            animation: breathe 4s ease-in-out infinite; 
-        }
-
-        @keyframes breathe {
-            0% { opacity: 0.2; }
-            50% { opacity: 1.0; }
-            100% { opacity: 0.2; }
-        }
-
+        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; }
+        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; }
+        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
+        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
+        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
         .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
-        @keyframes flash-white-slow { 
-            0% { background-color: #000; } 
-            40% { background-color: #fff; } 
-            100% { background-color: #000; } 
-        }
+        @keyframes flash-white-slow { 0% { background-color: #000; } 40% { background-color: #fff; } 100% { background-color: #000; } }
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
         
-        #start-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #000; z-index: 100; display: flex; 
-            justify-content: center; align-items: center; 
-        }
-        #start-btn { 
-            padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; 
-            background: #222; color: #fff; border-radius: 15px; cursor: pointer; 
-        }
+        /* 接続状態を確認するための小さなドット（左下に配置：目立たない程度） */
+        #status-dot { position: fixed; bottom: 10px; left: 10px; width: 5px; height: 5px; background: #333; border-radius: 50%; }
     </style>
 </head>
 <body>
     <div id="start-overlay">
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
+    <div id="status-dot"></div>
 
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
     <div id="display-area">
@@ -84,30 +35,43 @@
             <div id="sub-message">まもなく到着します</div>
         </div>
     </div>
-    
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
+    let checkInterval = null;
     let lastStatus = "0";
     let lastMinute = -1;
 
     function setupAudio() {
         const chime = document.getElementById('chime');
-        chime.play().then(() => {
-            chime.pause();
-            chime.currentTime = 0;
-        }).catch(e => { console.log("Ready"); });
-
+        chime.play().then(() => { chime.pause(); chime.currentTime = 0; }).catch(e => {});
         document.getElementById('start-overlay').style.display = 'none';
-        setInterval(check, 2000);
+        
+        startMonitoring();
+    }
+
+    // 監視を開始する関数
+    function startMonitoring() {
+        if (checkInterval) clearInterval(checkInterval);
+        checkInterval = setInterval(check, 2000); // 2秒ごとに確認
     }
 
     async function check() {
+        // 通信していることを示すためにドットを光らせる
+        const dot = document.getElementById('status-dot');
+        dot.style.background = '#00ff00';
+        setTimeout(() => { dot.style.background = '#333'; }, 200);
+
         try {
-            const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒でタイムアウト
+
+            const res = await fetch(`${GAS_URL}?t=${Date.now()}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
             const status = await res.text();
             if (status !== lastStatus) {
                 if (status === "0") stopTimer();
@@ -117,7 +81,12 @@
                 }
                 lastStatus = status;
             }
-        } catch (e) {}
+        } catch (e) {
+            console.log("Retry connection...");
+            // エラーが起きたら一度止めて3秒後に再開
+            clearInterval(checkInterval);
+            setTimeout(startMonitoring, 3000);
+        }
     }
 
     function start(sec) {
@@ -133,7 +102,7 @@
         if (sec === 300) {
             const chime = document.getElementById('chime');
             chime.currentTime = 0;
-            chime.play().catch(e => console.log(e));
+            chime.play().catch(e => {});
         }
         
         triggerFlash();
