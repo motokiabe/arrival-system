@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Connection Fixed)</title>
+    <title>到着案内 Pro (Keep Alive)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -16,16 +16,12 @@
         @keyframes flash-white-slow { 0% { background-color: #000; } 40% { background-color: #fff; } 100% { background-color: #000; } }
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
         #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
-        
-        /* 接続状態を確認するための小さなドット（左下に配置：目立たない程度） */
-        #status-dot { position: fixed; bottom: 10px; left: 10px; width: 5px; height: 5px; background: #333; border-radius: 50%; }
     </style>
 </head>
 <body>
     <div id="start-overlay">
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
-    <div id="status-dot"></div>
 
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
     <div id="display-area">
@@ -41,7 +37,6 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
-    let checkInterval = null;
     let lastStatus = "0";
     let lastMinute = -1;
 
@@ -50,29 +45,32 @@
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; }).catch(e => {});
         document.getElementById('start-overlay').style.display = 'none';
         
-        startMonitoring();
-    }
+        // 【新機能】10分に一度、ブラウザを自動リロードして接続をフレッシュにする
+        setTimeout(() => {
+            if (lastStatus === "0") location.reload();
+        }, 600000); 
 
-    // 監視を開始する関数
-    function startMonitoring() {
-        if (checkInterval) clearInterval(checkInterval);
-        checkInterval = setInterval(check, 2000); // 2秒ごとに確認
+        setInterval(check, 2000);
     }
 
     async function check() {
-        // 通信していることを示すためにドットを光らせる
-        const dot = document.getElementById('status-dot');
-        dot.style.background = '#00ff00';
-        setTimeout(() => { dot.style.background = '#333'; }, 200);
-
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒でタイムアウト
-
-            const res = await fetch(`${GAS_URL}?t=${Date.now()}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
+            const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
+            
+            // 【重要】通信が成功するたびに、極小音量で音声を「刺激」して眠らせないようにする
+            const chime = document.getElementById('chime');
+            if (chime.paused && lastStatus === "0") {
+                chime.volume = 0.01; // ほぼ無音
+                chime.play().then(() => { 
+                    setTimeout(() => { 
+                        chime.pause(); 
+                        chime.currentTime = 0;
+                        chime.volume = 1.0; // 音量を戻す
+                    }, 10);
+                }).catch(() => {});
+            }
+
             if (status !== lastStatus) {
                 if (status === "0") stopTimer();
                 else {
@@ -81,12 +79,7 @@
                 }
                 lastStatus = status;
             }
-        } catch (e) {
-            console.log("Retry connection...");
-            // エラーが起きたら一度止めて3秒後に再開
-            clearInterval(checkInterval);
-            setTimeout(startMonitoring, 3000);
-        }
+        } catch (e) {}
     }
 
     function start(sec) {
@@ -101,8 +94,9 @@
         
         if (sec === 300) {
             const chime = document.getElementById('chime');
+            chime.volume = 1.0;
             chime.currentTime = 0;
-            chime.play().catch(e => {});
+            chime.play().catch(e => console.log(e));
         }
         
         triggerFlash();
