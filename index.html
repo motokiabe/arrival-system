@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Ultra Stable)</title>
+    <title>到着案内 Pro (Reset on Start)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -40,31 +40,26 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
-    let lastStatus = null;
+    let lastStatus = "0"; // 初期値を0に固定
     let lastMinute = -1;
 
-    function setupAudio() {
+    async function setupAudio() {
         const chime = document.getElementById('chime');
         const silent = document.getElementById('silent-keep-alive');
         
-        // 強制的にロードを走らせる
         chime.load();
-        chime.play().then(() => { chime.pause(); chime.currentTime = 0; }).catch(e => console.log(e));
+        chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         silent.play();
         
         document.getElementById('start-overlay').style.display = 'none';
-        
-        // 起動時同期
-        fetch(`${GAS_URL}?t=${Date.now()}`)
-            .then(res => res.text())
-            .then(status => {
-                lastStatus = status;
-                if (status !== "0") {
-                    const mins = parseInt(status);
-                    if (!isNaN(mins)) start(mins * 60);
-                }
-                setInterval(check, 2000);
-            });
+
+        // 【重要】開始時にGAS側のステータスを強制的に「0」にリセットする
+        try {
+            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
+        } catch(e) {}
+
+        // リセット完了後に監視を開始
+        setInterval(check, 2000);
     }
 
     async function check() {
@@ -73,7 +68,9 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
+                // 通信でステータスが変わった時（ボタン操作時）だけ音を鳴らす
                 playChime();
+
                 if (status === "0") {
                     stopTimer();
                 } else {
@@ -87,22 +84,11 @@
 
     function playChime() {
         const chime = document.getElementById('chime');
-        // iOS向けのおまじない：再生前に必ずload()を挟まない設定にする
-        if (chime.paused) {
-            chime.currentTime = 0;
-            const p = chime.play();
-            if (p !== undefined) {
-                p.catch(e => {
-                    // 再生失敗時はリロードして再試行
-                    chime.load();
-                    chime.play();
-                });
-            }
-        } else {
-            chime.pause();
-            chime.currentTime = 0;
+        chime.currentTime = 0;
+        chime.play().catch(e => {
+            chime.load();
             chime.play();
-        }
+        });
     }
 
     function start(sec) {
@@ -155,6 +141,7 @@
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
+        
         setTimeout(() => {
             document.getElementById('sub-message').style.display = 'none';
             setTimeout(() => {
