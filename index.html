@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Offline Sound)</title>
+    <title>到着案内 Pro (Deep Sleep Fix)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -33,36 +33,27 @@
         </div>
     </div>
     
-    <audio id="chime"></audio>
-    <audio id="silent-keep-alive" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" loop></audio>
+    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+    <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
-    // 【重要】ここに変換した長い文字列を貼り付けてください
-    const CHIME_BASE64 = "【ここにdata:audio/mp3;base64,...を貼り付け】";
-
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
     let lastStatus = "0"; 
-    let lastMinute = -1;
 
-    async function setupAudio() {
+    function setupAudio() {
         const chime = document.getElementById('chime');
-        const silent = document.getElementById('silent-keep-alive');
+        const alive = document.getElementById('keep-alive');
         
-        // 音声データをセット
-        chime.src = CHIME_BASE64;
-        chime.load();
-        
-        // 最初の権限取得
+        // 最初のボタン押しで「全ての音を出す権利」をSafariから奪い取る
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
-        silent.play();
+        alive.play(); // これを流し続けることでSafariを眠らせない
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        try {
-            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
-        } catch(e) {}
+        // 起動時にサーバーをリセット
+        fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e => {});
 
         setInterval(check, 2000);
     }
@@ -73,7 +64,9 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                playChime();
+                // iPhoneでボタンが押されたら即座に鳴らす
+                forcePlayChime();
+
                 if (status === "0") {
                     stopTimer();
                 } else {
@@ -85,29 +78,34 @@
         } catch (e) {}
     }
 
-    function playChime() {
+    function forcePlayChime() {
         const chime = document.getElementById('chime');
         chime.pause();
+        chime.load(); // 毎回リロードしてメモリに無理やり載せる
         chime.currentTime = 0;
-        chime.play().catch(e => {
-            // 万が一失敗してもメモリ内にあるのでリロードが速い
-            chime.load();
-            chime.play();
-        });
+        
+        // iOS 12向けの確実に鳴らすための2段構え
+        var promise = chime.play();
+        if (promise !== undefined) {
+            promise.catch(error => {
+                // 再生が拒否されたらもう一度トライ
+                setTimeout(() => { chime.play(); }, 100);
+            });
+        }
     }
 
     function start(sec) {
         timeLeft = sec;
-        lastMinute = Math.ceil(timeLeft / 60);
         updateDisplay();
-        if (lastMinute === 5 || lastMinute === 1) triggerFlash();
+        const currentMin = Math.ceil(timeLeft / 60);
+        if (currentMin === 5 || currentMin === 1) triggerFlash();
 
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
-            const currentMin = Math.ceil(timeLeft / 60);
-            if (currentMin === 1 && lastMinute !== 1) triggerFlash();
-            lastMinute = currentMin;
+            const min = Math.ceil(timeLeft / 60);
+            // 1分になった瞬間だけ光る
+            if (min === 1 && timeLeft === 59) triggerFlash();
 
             if (timeLeft > 0) {
                 updateDisplay();
@@ -118,11 +116,12 @@
     }
 
     function updateDisplay() {
+        const min = Math.ceil(timeLeft / 60);
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('label').style.display = 'block';
         document.getElementById('main-timer').style.display = 'block';
         document.getElementById('sub-message').style.display = 'none';
-        document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
+        document.getElementById('main-timer').innerHTML = `${min}<span class="unit">分</span>`;
     }
 
     function triggerFlash() {
@@ -137,7 +136,6 @@
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
-        document.getElementById('sub-message').style.display = 'none';
     }
 
     function finishSequence() {
