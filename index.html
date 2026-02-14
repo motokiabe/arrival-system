@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Driver Edition)</title>
+    <title>到着案内 Pro (All Feedback)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -46,9 +46,8 @@
         const chime = document.getElementById('chime');
         const silent = document.getElementById('silent-keep-alive');
         
-        // 最初に両方の再生を「許可」させる
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
-        silent.play(); // 無音を流しっぱなしにする（Safariへのアピール）
+        silent.play();
 
         document.getElementById('start-overlay').style.display = 'none';
         setInterval(check, 2000);
@@ -60,14 +59,29 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                if (status === "0") stopTimer();
-                else {
+                // どのボタン（開始もリセットも）が押されても音を鳴らす
+                playChime();
+
+                if (status === "0") {
+                    stopTimer();
+                } else {
                     const mins = parseInt(status);
-                    if (!isNaN(mins) && mins > 0) start(mins * 60);
+                    if (!isNaN(mins) && mins > 0) {
+                        start(mins * 60);
+                    }
                 }
                 lastStatus = status;
             }
         } catch (e) {}
+    }
+
+    function playChime() {
+        const chime = document.getElementById('chime');
+        chime.currentTime = 0;
+        chime.play().catch(e => {
+            chime.load();
+            chime.play();
+        });
     }
 
     function start(sec) {
@@ -79,15 +93,6 @@
         document.getElementById('label').style.display = 'block';
         document.getElementById('sub-message').style.display = 'none';
         document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
-        
-        if (sec === 300) {
-            const chime = document.getElementById('chime');
-            chime.currentTime = 0;
-            chime.play().catch(e => {
-                chime.load();
-                chime.play();
-            });
-        }
         
         triggerFlash();
 
@@ -122,7 +127,6 @@
         timerId = null;
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('timer-container').style.display = 'none';
-        lastStatus = "0";
     }
 
     function finishSequence() {
