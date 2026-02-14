@@ -2,13 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (All Feedback)</title>
+    <title>到着案内 Pro (Custom Chime Logic)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
-        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; }
-        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; }
+        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
+        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
         #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
@@ -23,9 +23,9 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2824.png">
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
     <div id="display-area">
-        <div id="timer-container" style="display: none;">
+        <div id="timer-container">
             <div id="label">到着まで</div>
             <div id="main-timer"></div>
             <div id="sub-message">まもなく到着します</div>
@@ -39,18 +39,23 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
-    let lastStatus = "0";
+    let lastStatus = null;
     let lastMinute = -1;
 
     function setupAudio() {
         const chime = document.getElementById('chime');
         const silent = document.getElementById('silent-keep-alive');
-        
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         silent.play();
-
         document.getElementById('start-overlay').style.display = 'none';
-        setInterval(check, 2000);
+        
+        // 初回チェック
+        fetch(`${GAS_URL}?t=${Date.now()}`)
+            .then(res => res.text())
+            .then(status => {
+                lastStatus = status; 
+                setInterval(check, 2000);
+            });
     }
 
     async function check() {
@@ -59,16 +64,14 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // どのボタン（開始もリセットも）が押されても音を鳴らす
+                // iPhone側でステータスが変更された（＝ボタンが押された）時だけチャイムを鳴らす
                 playChime();
 
                 if (status === "0") {
                     stopTimer();
                 } else {
                     const mins = parseInt(status);
-                    if (!isNaN(mins) && mins > 0) {
-                        start(mins * 60);
-                    }
+                    if (!isNaN(mins) && mins > 0) start(mins * 60);
                 }
                 lastStatus = status;
             }
@@ -78,42 +81,41 @@
     function playChime() {
         const chime = document.getElementById('chime');
         chime.currentTime = 0;
-        chime.play().catch(e => {
-            chime.load();
-            chime.play();
-        });
+        chime.play().catch(e => { chime.load(); chime.play(); });
     }
 
     function start(sec) {
         timeLeft = sec;
         lastMinute = Math.ceil(timeLeft / 60);
-        document.getElementById('standby-image').style.display = 'none';
-        document.getElementById('timer-container').style.display = 'block';
-        document.getElementById('main-timer').style.display = 'block';
-        document.getElementById('label').style.display = 'block';
-        document.getElementById('sub-message').style.display = 'none';
-        document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
         
-        triggerFlash();
+        updateDisplay();
+        if (lastMinute === 5 || lastMinute === 1) triggerFlash();
 
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
             const currentMin = Math.ceil(timeLeft / 60);
-            if (currentMin > 0 && currentMin !== lastMinute) {
+            
+            if (currentMin === 1 && lastMinute !== 1) {
                 triggerFlash();
-                lastMinute = currentMin;
             }
-            if(timeLeft > 30) {
-                document.getElementById('main-timer').innerHTML = `${currentMin}<span class="unit">分</span>`;
-            } else if (timeLeft <= 30 && timeLeft > 0) {
-                document.getElementById('label').style.display = 'none';
-                document.getElementById('main-timer').style.display = 'none';
-                document.getElementById('sub-message').style.display = 'block';
+            lastMinute = currentMin;
+
+            if (timeLeft > 0) {
+                updateDisplay();
             } else {
+                // カウントが自然に終わった時は、playChimeを呼ばずに終了シーケンスへ
                 finishSequence();
             }
         }, 1000);
+    }
+
+    function updateDisplay() {
+        document.getElementById('standby-image').style.display = 'none';
+        document.getElementById('label').style.display = 'block';
+        document.getElementById('main-timer').style.display = 'block';
+        document.getElementById('sub-message').style.display = 'none';
+        document.getElementById('main-timer').innerHTML = `${lastMinute}<span class="unit">分</span>`;
     }
 
     function triggerFlash() {
@@ -126,15 +128,29 @@
         if(timerId) clearInterval(timerId);
         timerId = null;
         document.getElementById('standby-image').style.display = 'block';
-        document.getElementById('timer-container').style.display = 'none';
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'none';
     }
 
     function finishSequence() {
         clearInterval(timerId);
         timerId = null;
-        document.getElementById('timer-container').style.display = 'none';
-        document.getElementById('standby-image').style.display = 'none';
-        setTimeout(() => { if (!timerId) document.getElementById('standby-image').style.display = 'block'; }, 30000);
+        
+        // ここではplayChimeを呼ばない（自然終了時はサイレント）
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'block';
+
+        setTimeout(() => {
+            document.getElementById('sub-message').style.display = 'none';
+            setTimeout(() => {
+                if (!timerId) {
+                    document.getElementById('standby-image').style.display = 'block';
+                    lastStatus = "0";
+                }
+            }, 5000);
+        }, 60000);
     }
 </script>
 </body>
