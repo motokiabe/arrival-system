@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Reset on Start)</title>
+    <title>到着案内 Pro (Offline Sound)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -33,32 +33,37 @@
         </div>
     </div>
     
-    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+    <audio id="chime"></audio>
     <audio id="silent-keep-alive" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" loop></audio>
 
 <script>
+    // 【重要】ここに変換した長い文字列を貼り付けてください
+    const CHIME_BASE64 = "【ここにdata:audio/mp3;base64,...を貼り付け】";
+
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
     let timeLeft = 0;
     let timerId = null;
-    let lastStatus = "0"; // 初期値を0に固定
+    let lastStatus = "0"; 
     let lastMinute = -1;
 
     async function setupAudio() {
         const chime = document.getElementById('chime');
         const silent = document.getElementById('silent-keep-alive');
         
+        // 音声データをセット
+        chime.src = CHIME_BASE64;
         chime.load();
+        
+        // 最初の権限取得
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         silent.play();
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // 【重要】開始時にGAS側のステータスを強制的に「0」にリセットする
         try {
             await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
         } catch(e) {}
 
-        // リセット完了後に監視を開始
         setInterval(check, 2000);
     }
 
@@ -68,9 +73,7 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // 通信でステータスが変わった時（ボタン操作時）だけ音を鳴らす
                 playChime();
-
                 if (status === "0") {
                     stopTimer();
                 } else {
@@ -84,8 +87,10 @@
 
     function playChime() {
         const chime = document.getElementById('chime');
+        chime.pause();
         chime.currentTime = 0;
         chime.play().catch(e => {
+            // 万が一失敗してもメモリ内にあるのでリロードが速い
             chime.load();
             chime.play();
         });
