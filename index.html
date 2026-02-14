@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Final Edition)</title>
+    <title>到着案内 Pro (Initial Sync Fixed)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -50,10 +50,16 @@
         silent.play();
         document.getElementById('start-overlay').style.display = 'none';
         
+        // 【修正】起動時の初回チェック
         fetch(`${GAS_URL}?t=${Date.now()}`)
             .then(res => res.text())
             .then(status => {
-                lastStatus = status; 
+                lastStatus = status;
+                // もし起動時にすでに「0」以外（例えば5）なら、即座にカウント開始
+                if (status !== "0") {
+                    const mins = parseInt(status);
+                    if (!isNaN(mins)) start(mins * 60);
+                }
                 setInterval(check, 2000);
             });
     }
@@ -64,9 +70,7 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // iPhoneからの操作（ステータス変更）時のみ鳴らす
                 playChime();
-
                 if (status === "0") {
                     stopTimer();
                 } else {
@@ -135,8 +139,6 @@
     function finishSequence() {
         clearInterval(timerId);
         timerId = null;
-        
-        // 自然終了時はサイレント
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
@@ -146,7 +148,9 @@
             setTimeout(() => {
                 if (!timerId) {
                     document.getElementById('standby-image').style.display = 'block';
-                    lastStatus = "0";
+                    // 終了後にGAS側が「5」のままだと次回起動時にまた始まってしまうため、
+                    // クライアント側では一旦0扱いに戻す
+                    lastStatus = "0"; 
                 }
             }, 5000);
         }, 60000);
