@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Custom Chime Logic)</title>
+    <title>到着案内 Pro (Final Edition)</title>
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -23,7 +23,8 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2788.png">
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2824.png">
+    
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
@@ -49,7 +50,6 @@
         silent.play();
         document.getElementById('start-overlay').style.display = 'none';
         
-        // 初回チェック
         fetch(`${GAS_URL}?t=${Date.now()}`)
             .then(res => res.text())
             .then(status => {
@@ -64,7 +64,7 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // iPhone側でステータスが変更された（＝ボタンが押された）時だけチャイムを鳴らす
+                // iPhoneからの操作（ステータス変更）時のみ鳴らす
                 playChime();
 
                 if (status === "0") {
@@ -104,7 +104,6 @@
             if (timeLeft > 0) {
                 updateDisplay();
             } else {
-                // カウントが自然に終わった時は、playChimeを呼ばずに終了シーケンスへ
                 finishSequence();
             }
         }, 1000);
@@ -137,7 +136,7 @@
         clearInterval(timerId);
         timerId = null;
         
-        // ここではplayChimeを呼ばない（自然終了時はサイレント）
+        // 自然終了時はサイレント
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
