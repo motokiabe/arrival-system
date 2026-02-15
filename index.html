@@ -6,31 +6,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <style>
-        body { 
-            margin: 0; 
-            background-color: #000; 
-            color: #fff; 
-            font-family: "Hiragino Sans", "W1", sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            overflow: hidden; 
-            padding-top: env(safe-area-inset-top);
-        }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
         #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
         #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
-        
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
         .flash-slow { animation: flash-white-slow 0.8s ease-in-out; }
         @keyframes flash-white-slow { 0% { background-color: #000; } 40% { background-color: #fff; } 100% { background-color: #000; } }
-        
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
         #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
     </style>
@@ -39,9 +25,7 @@
     <div id="start-overlay">
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
-
     <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
-    
     <div id="display-area">
         <div id="timer-container">
             <div id="label">到着まで</div>
@@ -49,7 +33,6 @@
             <div id="sub-message">まもなく到着します</div>
         </div>
     </div>
-    
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
@@ -62,15 +45,10 @@
     function setupAudio() {
         const chime = document.getElementById('chime');
         const alive = document.getElementById('keep-alive');
-        
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         alive.play(); 
-        
         document.getElementById('start-overlay').style.display = 'none';
-
-        // 起動時にサーバーをリセット
         fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e => {});
-
         setInterval(check, 2000);
     }
 
@@ -80,9 +58,10 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // iPhoneでボタン操作（0分リセット含む）があった時のみ鳴らす
+                // 1. まず音を出す（最速のタイミングで）
                 forcePlayChime();
 
+                // 2. その後、表示を更新する
                 if (status === "0") {
                     stopTimer();
                 } else {
@@ -96,16 +75,13 @@
 
     function forcePlayChime() {
         const chime = document.getElementById('chime');
+        // 前回の再生が残っている場合のクリアを高速化
         chime.pause();
-        chime.load(); 
         chime.currentTime = 0;
-        
-        var promise = chime.play();
-        if (promise !== undefined) {
-            promise.catch(error => {
-                setTimeout(() => { chime.play(); }, 100);
-            });
-        }
+        chime.play().catch(e => {
+            chime.load(); // 失敗時のみロード
+            chime.play();
+        });
     }
 
     function start(sec) {
@@ -113,14 +89,11 @@
         updateDisplay();
         const currentMin = Math.ceil(timeLeft / 60);
         if (currentMin === 5 || currentMin === 1) triggerFlash();
-
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
             const min = Math.ceil(timeLeft / 60);
-            
             if (min === 1 && timeLeft === 59) triggerFlash();
-
             if (timeLeft > 0) {
                 updateDisplay();
             } else {
@@ -134,7 +107,6 @@
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('label').style.display = 'block';
         document.getElementById('main-timer').style.display = 'block';
-        document.getElementById('sub-message').style.display = 'none';
         document.getElementById('main-timer').innerHTML = `${min}<span class="unit">分</span>`;
     }
 
@@ -158,7 +130,6 @@
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
-        
         setTimeout(() => {
             document.getElementById('sub-message').style.display = 'none';
             setTimeout(() => {
