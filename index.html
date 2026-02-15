@@ -18,7 +18,6 @@
             align-items: center; 
             height: 100vh; 
             overflow: hidden; 
-            /* ツールバーとの一体感を出すため */
             padding-top: env(safe-area-inset-top);
         }
         #standby-image { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -41,7 +40,7 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2824.png">
+    <img id="standby-image" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
     
     <div id="display-area">
         <div id="timer-container">
@@ -64,13 +63,12 @@
         const chime = document.getElementById('chime');
         const alive = document.getElementById('keep-alive');
         
-        // 音声を出す権利をSafariから奪う（iOS 12対策）
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         alive.play(); 
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // 起動時にサーバーの状態をリセット
+        // 起動時にサーバーをリセット
         fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e => {});
 
         setInterval(check, 2000);
@@ -82,7 +80,7 @@
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // iPhoneでボタン操作があった時のみ鳴らす
+                // iPhoneでボタン操作（0分リセット含む）があった時のみ鳴らす
                 forcePlayChime();
 
                 if (status === "0") {
@@ -121,7 +119,6 @@
             timeLeft--;
             const min = Math.ceil(timeLeft / 60);
             
-            // 1分になった瞬間にフラッシュ（残り59秒になったタイミング）
             if (min === 1 && timeLeft === 59) triggerFlash();
 
             if (timeLeft > 0) {
