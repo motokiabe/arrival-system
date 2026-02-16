@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Multi-Chime)</title>
+    <title>到着案内 Pro (Loop Fix)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -52,18 +52,18 @@
         const chime = document.getElementById('chime');
         const chime2 = document.getElementById('chime2');
         const alive = document.getElementById('keep-alive');
-        
-        // 両方のチャイムを鳴らす権利を確定させる
-        [chime, chime2].forEach(c => {
-            c.play().then(() => { c.pause(); c.currentTime = 0; });
-        });
+        [chime, chime2].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }); });
         alive.play(); 
-        
         document.getElementById('start-overlay').style.display = 'none';
-
-        try { await fetch(`${GAS_URL}?status=0&t=${Date.now()}`); } catch(e) {}
+        await resetServer(); // 起動時にサーバーをリセット
         lastStatus = "0"; 
         setInterval(check, 2000);
+    }
+
+    async function resetServer() {
+        try {
+            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
+        } catch(e) {}
     }
 
     async function check() {
@@ -81,9 +81,6 @@
 
     function handleStatusChange(status) {
         const isRightLeft = status.toLowerCase().includes("right") || status.toLowerCase().includes("left");
-        
-        // 音の種類を出し分ける
-        // 右・左なら chime2、それ以外（タイマー等）ならいつもの chime
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
         if (status.toLowerCase().includes("right")) {
@@ -102,10 +99,7 @@
         const audio = document.getElementById(audioId);
         audio.pause();
         audio.currentTime = 0;
-        audio.play().catch(() => {
-            audio.load();
-            audio.play();
-        });
+        audio.play().catch(() => { audio.load(); audio.play(); });
     }
 
     function showCustomImage(imgId) {
@@ -161,15 +155,22 @@
         document.getElementById('sub-message').style.display = 'none';
     }
 
-    function finishSequence() {
+    async function finishSequence() {
         clearInterval(timerId);
         timerId = null;
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
+        
+        // 【重要】カウントダウンが終わった瞬間にサーバーを「0」にリセットしに行く
+        await resetServer();
+        lastStatus = "0";
+
         setTimeout(() => {
             document.getElementById('sub-message').style.display = 'none';
-            setTimeout(() => { if (!timerId) stopTimer(); lastStatus = "0"; }, 5000);
+            setTimeout(() => { 
+                if (!timerId) stopTimer(); 
+            }, 5000);
         }, 60000);
     }
 </script>
