@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Fix)</title>
+    <title>到着案内 Pro (Multi-Chime)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -40,57 +40,51 @@
     </div>
     
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+    <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
-    let lastStatus = "WAITING_START"; // 初期値を「開始待ち」にする
+    let lastStatus = "WAITING_START"; 
     let timerId = null;
 
     async function setupAudio() {
         const chime = document.getElementById('chime');
+        const chime2 = document.getElementById('chime2');
         const alive = document.getElementById('keep-alive');
         
-        // 音声の権利確定
-        chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
+        // 両方のチャイムを鳴らす権利を確定させる
+        [chime, chime2].forEach(c => {
+            c.play().then(() => { c.pause(); c.currentTime = 0; });
+        });
         alive.play(); 
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // 1. サーバーをリセット（status=0を送信）
-        try {
-            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
-        } catch(e) {}
-
-        // 2. サーバーのリセット完了を待たずに、まず現在の状態を「0」として受け入れる
+        try { await fetch(`${GAS_URL}?status=0&t=${Date.now()}`); } catch(e) {}
         lastStatus = "0"; 
-
-        // 3. その後、監視を開始する
         setInterval(check, 2000);
     }
 
     async function check() {
-        if (lastStatus === "WAITING_START") return; // セットアップが終わるまで何もしない
-
+        if (lastStatus === "WAITING_START") return;
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
             if (status !== lastStatus) {
-                // 初回チェック時に前回の残骸(1など)が来ても、
-                // セットアップ直後の1回目なら無視する
-                if (lastStatus === "0" && (status !== "right" && status !== "left" && isNaN(parseInt(status)))) {
-                   // 特殊なケース（文字化け等）は無視
-                } else {
-                    handleStatusChange(status);
-                }
+                handleStatusChange(status);
                 lastStatus = status;
             }
         } catch (e) {}
     }
 
     function handleStatusChange(status) {
-        forcePlayChime();
+        const isRightLeft = status.toLowerCase().includes("right") || status.toLowerCase().includes("left");
+        
+        // 音の種類を出し分ける
+        // 右・左なら chime2、それ以外（タイマー等）ならいつもの chime
+        forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
         if (status.toLowerCase().includes("right")) {
             showCustomImage('right-image');
@@ -104,13 +98,13 @@
         }
     }
 
-    function forcePlayChime() {
-        const chime = document.getElementById('chime');
-        chime.pause();
-        chime.currentTime = 0;
-        chime.play().catch(() => {
-            chime.load();
-            chime.play();
+    function forcePlayChime(audioId) {
+        const audio = document.getElementById(audioId);
+        audio.pause();
+        audio.currentTime = 0;
+        audio.play().catch(() => {
+            audio.load();
+            audio.play();
         });
     }
 
