@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Flash Fix)</title>
+    <title>到着案内 Pro (Fix)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -15,17 +15,9 @@
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
         #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
-        
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
-
-        /* フラッシュのアニメーションを少し長く、分かりやすく変更 */
         .flash-effect { animation: flash-white-strong 0.5s ease-out; }
-        @keyframes flash-white-strong { 
-            0% { background-color: #000; } 
-            20% { background-color: #fff; } 
-            100% { background-color: #000; } 
-        }
-
+        @keyframes flash-white-strong { 0% { background-color: #000; } 20% { background-color: #fff; } 100% { background-color: #000; } }
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
         #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
     </style>
@@ -52,40 +44,64 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbx2WTj1Oe5geWffuMiuDb2stacmHaK3D9_zyoCZqyH18u39vyLaUWyLg787aReGfTbA/exec"; 
-    let lastStatus = "0"; 
+    let lastStatus = "WAITING_START"; // 初期値を「開始待ち」にする
     let timerId = null;
 
-    function setupAudio() {
+    async function setupAudio() {
         const chime = document.getElementById('chime');
         const alive = document.getElementById('keep-alive');
+        
+        // 音声の権利確定
         chime.play().then(() => { chime.pause(); chime.currentTime = 0; });
         alive.play(); 
+        
         document.getElementById('start-overlay').style.display = 'none';
-        fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e => {});
+
+        // 1. サーバーをリセット（status=0を送信）
+        try {
+            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
+        } catch(e) {}
+
+        // 2. サーバーのリセット完了を待たずに、まず現在の状態を「0」として受け入れる
+        lastStatus = "0"; 
+
+        // 3. その後、監視を開始する
         setInterval(check, 2000);
     }
 
     async function check() {
+        if (lastStatus === "WAITING_START") return; // セットアップが終わるまで何もしない
+
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
             if (status !== lastStatus) {
-                forcePlayChime();
-
-                if (status.toLowerCase().includes("right")) {
-                    showCustomImage('right-image');
-                } else if (status.toLowerCase().includes("left")) {
-                    showCustomImage('left-image');
-                } else if (status === "0") {
-                    stopTimer();
+                // 初回チェック時に前回の残骸(1など)が来ても、
+                // セットアップ直後の1回目なら無視する
+                if (lastStatus === "0" && (status !== "right" && status !== "left" && isNaN(parseInt(status)))) {
+                   // 特殊なケース（文字化け等）は無視
                 } else {
-                    const mins = parseInt(status);
-                    if (!isNaN(mins) && mins > 0) start(mins * 60);
+                    handleStatusChange(status);
                 }
                 lastStatus = status;
             }
         } catch (e) {}
+    }
+
+    function handleStatusChange(status) {
+        forcePlayChime();
+
+        if (status.toLowerCase().includes("right")) {
+            showCustomImage('right-image');
+        } else if (status.toLowerCase().includes("left")) {
+            showCustomImage('left-image');
+        } else if (status === "0") {
+            stopTimer();
+        } else {
+            const mins = parseInt(status);
+            if (!isNaN(mins) && mins > 0) start(mins * 60);
+        }
     }
 
     function forcePlayChime() {
@@ -110,8 +126,6 @@
     function start(sec) {
         let timeLeft = sec;
         updateDisplay(timeLeft);
-        
-        // 5分・1分で開始された瞬間に光らせる
         const initialMin = Math.ceil(timeLeft / 60);
         if (initialMin === 5 || initialMin === 1) triggerFlash();
 
@@ -119,10 +133,7 @@
         timerId = setInterval(() => {
             timeLeft--;
             const min = Math.ceil(timeLeft / 60);
-            
-            // 1分になった瞬間（59秒になった時）に光らせる
             if (min === 1 && timeLeft === 59) triggerFlash();
-
             if (timeLeft > 0) {
                 updateDisplay(timeLeft);
             } else {
@@ -141,7 +152,6 @@
 
     function triggerFlash() {
         const body = document.body;
-        // 一度クラスを消して、強制的に再描画させてから再度付与
         body.classList.remove('flash-effect');
         void body.offsetWidth; 
         body.classList.add('flash-effect');
