@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro</title>
+    <title>到着案内 Pro (Stable Ver)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -28,8 +28,8 @@
     </div>
 
     <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
-    <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/%E5%8F%B3.png">
-    <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/%E5%B7%A6.png">
+    <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
+    <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
     
     <div id="display-area">
         <div id="timer-container">
@@ -60,17 +60,15 @@
     async function check() {
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
-            let status = await res.text();
+            const status = await res.text();
             
-            // 重要：送られてきた文字（暗号化されている可能性あり）を解読する
-            status = decodeURIComponent(status);
-
             if (status !== lastStatus) {
                 forcePlayChime();
 
-                if (status.includes("右")) {
+                // 英単語で判定
+                if (status.toLowerCase().includes("right")) {
                     showCustomImage('right-image');
-                } else if (status.includes("左")) {
+                } else if (status.toLowerCase().includes("left")) {
                     showCustomImage('left-image');
                 } else if (status === "0") {
                     stopTimer();
