@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (Final Fix)</title>
+    <title>到着案内 Pro (Final Reset Ver)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -45,9 +45,8 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwsXo2OO5VnY0sIoTUVEKYnAKDjvU_ihodnywL00PKDWSUXfO5qb0SFm3eLsYoY7Hia/exec"; 
-    let lastStatus = "WAITING_START"; 
     let timerId = null;
-    let isInitialGuard = false; // 開始直後のガードフラグ
+    let isMonitoring = false;
 
     async function setupAudio() {
         const chime = document.getElementById('chime');
@@ -58,49 +57,30 @@
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // ガード開始
-        isInitialGuard = true;
-        lastStatus = "0";
-
-        // サーバーをリセットしに行く
-        await resetServer();
-
-        // 5秒後にガードを解除（通信が安定するのを待つ）
+        // 起動時にまずサーバーを強制的に空にする
+        await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
+        
+        // 少し待ってから監視を開始
         setTimeout(() => {
-            isInitialGuard = false;
-        }, 5000);
-
-        setInterval(check, 2000);
-    }
-
-    async function resetServer() {
-        try {
-            await fetch(`${GAS_URL}?status=0&t=${Date.now()}`);
-        } catch(e) {}
+            isMonitoring = true;
+            setInterval(check, 2000);
+        }, 1000);
     }
 
     async function check() {
-        if (lastStatus === "WAITING_START") return;
+        if (!isMonitoring) return;
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
-            // ガード期間中、またはステータスが変わっていない場合は無視
-            if (isInitialGuard) return;
-
-            if (status !== lastStatus) {
+            // 指示（0以外）が届いた時だけ処理する
+            if (status !== "0" && status !== "") {
                 handleStatusChange(status);
-                lastStatus = status;
             }
         } catch (e) {}
     }
 
     function handleStatusChange(status) {
-        if (status === "0") {
-            stopTimer();
-            return;
-        }
-
         const isRightLeft = status.toLowerCase().includes("right") || status.toLowerCase().includes("left");
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
@@ -174,16 +154,13 @@
         document.getElementById('sub-message').style.display = 'none';
     }
 
-    async function finishSequence() {
+    function finishSequence() {
         clearInterval(timerId);
         timerId = null;
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
         
-        await resetServer();
-        lastStatus = "0";
-
         setTimeout(() => {
             document.getElementById('sub-message').style.display = 'none';
             setTimeout(() => { if (!timerId) stopTimer(); }, 5000);
