@@ -1,50 +1,5 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>到着案内 Pro (Final Reset Ver)</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); transition: background-color 0.1s; }
-        .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
-        #standby-image { display: block; }
-        #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
-        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
-        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
-        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
-        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
-        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
-        .flash-effect { animation: flash-white-strong 0.5s ease-out; }
-        @keyframes flash-white-strong { 0% { background-color: #000; } 20% { background-color: #fff; } 100% { background-color: #000; } }
-        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
-        #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <div id="start-overlay">
-        <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
-    </div>
-
-    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
-    <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
-    <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
-    
-    <div id="display-area">
-        <div id="timer-container">
-            <div id="label">到着まで</div>
-            <div id="main-timer"></div>
-            <div id="sub-message">まもなく到着します</div>
-        </div>
-    </div>
-    
-    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
-    <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
-    <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
-
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwsXo2OO5VnY0sIoTUVEKYnAKDjvU_ihodnywL00PKDWSUXfO5qb0SFm3eLsYoY7Hia/exec"; 
+    const GAS_URL = "ここに新しいデプロイURLを貼る"; 
     let timerId = null;
     let isMonitoring = false;
 
@@ -52,15 +7,16 @@
         const chime = document.getElementById('chime');
         const chime2 = document.getElementById('chime2');
         const alive = document.getElementById('keep-alive');
-        [chime, chime2].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }); });
-        alive.play(); 
+        
+        // 音声を鳴らす権利を確定
+        [chime, chime2].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }).catch(e=>{}); });
+        alive.play().catch(e=>{}); 
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // 起動時にまずサーバーを強制的に空にする
-        await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
+        // 起動時のリセットを「待ち」にせず、エラーでも次へ進むように修正
+        fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
         
-        // 少し待ってから監視を開始
         setTimeout(() => {
             isMonitoring = true;
             setInterval(check, 2000);
@@ -70,102 +26,31 @@
     async function check() {
         if (!isMonitoring) return;
         try {
+            // URLの末尾に毎回違う数字(t=...)をつけて、iPadが「古いデータ」を使わないようにする
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
-            // 指示（0以外）が届いた時だけ処理する
-            if (status !== "0" && status !== "") {
+            // 指示が届いた時だけ処理
+            if (status !== "0" && status !== "" && status.length < 10) { 
                 handleStatusChange(status);
             }
         } catch (e) {}
     }
 
     function handleStatusChange(status) {
-        const isRightLeft = status.toLowerCase().includes("right") || status.toLowerCase().includes("left");
+        const s = status.toLowerCase();
+        const isRightLeft = s.includes("right") || s.includes("left");
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
-        if (status.toLowerCase().includes("right")) {
+        if (s.includes("right")) {
             showCustomImage('right-image');
-        } else if (status.toLowerCase().includes("left")) {
+        } else if (s.includes("left")) {
             showCustomImage('left-image');
         } else {
             const mins = parseInt(status);
             if (!isNaN(mins) && mins > 0) start(mins * 60);
         }
     }
-
-    function forcePlayChime(audioId) {
-        const audio = document.getElementById(audioId);
-        audio.pause();
-        audio.currentTime = 0;
-        audio.play().catch(() => { audio.load(); audio.play(); });
-    }
-
-    function showCustomImage(imgId) {
-        if(timerId) clearInterval(timerId);
-        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
-        document.getElementById('label').style.display = 'none';
-        document.getElementById('main-timer').style.display = 'none';
-        document.getElementById('sub-message').style.display = 'none';
-        document.getElementById(imgId).style.display = 'block';
-    }
-
-    function start(sec) {
-        let timeLeft = sec;
-        updateDisplay(timeLeft);
-        const initialMin = Math.ceil(timeLeft / 60);
-        if (initialMin === 5 || initialMin === 1) triggerFlash();
-
-        if(timerId) clearInterval(timerId);
-        timerId = setInterval(() => {
-            timeLeft--;
-            const min = Math.ceil(timeLeft / 60);
-            if (min === 1 && timeLeft === 59) triggerFlash();
-            if (timeLeft > 0) {
-                updateDisplay(timeLeft);
-            } else {
-                finishSequence();
-            }
-        }, 1000);
-    }
-
-    function updateDisplay(sec) {
-        const min = Math.ceil(sec / 60);
-        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
-        document.getElementById('label').style.display = 'block';
-        document.getElementById('main-timer').style.display = 'block';
-        document.getElementById('main-timer').innerHTML = `${min}<span class="unit">分</span>`;
-    }
-
-    function triggerFlash() {
-        const body = document.body;
-        body.classList.remove('flash-effect');
-        void body.offsetWidth; 
-        body.classList.add('flash-effect');
-    }
-
-    function stopTimer() {
-        if(timerId) clearInterval(timerId);
-        timerId = null;
-        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
-        document.getElementById('standby-image').style.display = 'block';
-        document.getElementById('label').style.display = 'none';
-        document.getElementById('main-timer').style.display = 'none';
-        document.getElementById('sub-message').style.display = 'none';
-    }
-
-    function finishSequence() {
-        clearInterval(timerId);
-        timerId = null;
-        document.getElementById('label').style.display = 'none';
-        document.getElementById('main-timer').style.display = 'none';
-        document.getElementById('sub-message').style.display = 'block';
-        
-        setTimeout(() => {
-            document.getElementById('sub-message').style.display = 'none';
-            setTimeout(() => { if (!timerId) stopTimer(); }, 5000);
-        }, 60000);
-    }
+    
+    // 以下、既存の関数（forcePlayChime, start, updateDisplay, triggerFlash, stopTimer, finishSequence）は変更なしでOK
 </script>
-</body>
-</html>
