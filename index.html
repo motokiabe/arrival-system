@@ -44,6 +44,7 @@
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
+    // あなたの最新のGAS URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
     let timerId = null;
 
@@ -65,17 +66,16 @@
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
-            // 0以外、またはリセット命令の0が来たら反応する
+            
+            // 空白でなければ、"0"であっても処理を行うように修正
             if (status !== "" && status.length < 10) {
-                if (status !== "0") {
-                    handleStatusChange(status);
-                }
+                handleStatusChange(status);
             }
         } catch (e) {}
     }
 
     function handleStatusChange(status) {
-        // リセット命令
+        // 命令が "0" なら即座に全停止して待機画面へ
         if (status === "0") {
             stopTimer();
             return;
@@ -84,7 +84,6 @@
         const s = status.toLowerCase();
         const isRightLeft = s.includes("right") || s.includes("left");
         
-        // 音を鳴らす
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
         if (s.includes("right")) {
@@ -120,8 +119,10 @@
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
         setTimeout(() => {
-            document.getElementById('sub-message').style.display = 'none';
-            stopTimer();
+            if (!timerId) {
+                document.getElementById('sub-message').style.display = 'none';
+                stopTimer();
+            }
         }, 60000);
     }
 
