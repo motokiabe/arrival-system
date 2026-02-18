@@ -55,8 +55,6 @@
         alive.play().catch(e=>{}); 
         
         document.getElementById('start-overlay').style.display = 'none';
-
-        // 起動時にサーバーをリセット（0を書き込む）
         await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
         setInterval(check, 1000);
     }
@@ -65,8 +63,6 @@
         try {
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
-            
-            // "reset" という文字が届いた時だけリセットするように変更
             if (status !== "" && status !== "0" && status.length < 10) {
                 handleStatusChange(status);
             }
@@ -74,7 +70,9 @@
     }
 
     function handleStatusChange(status) {
+        // リセット命令が来たら音を鳴らしてから止める
         if (status === "reset") {
+            forcePlayChime('chime'); 
             stopTimer();
             return;
         }
