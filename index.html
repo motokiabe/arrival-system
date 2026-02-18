@@ -44,7 +44,6 @@
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
-    // あなたの最新のGAS URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
     let timerId = null;
 
@@ -57,7 +56,7 @@
         
         document.getElementById('start-overlay').style.display = 'none';
 
-        // 起動時にサーバーをリセット
+        // 起動時にサーバーをリセット（0を書き込む）
         await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
         setInterval(check, 1000);
     }
@@ -67,23 +66,21 @@
             const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
             const status = await res.text();
             
-            // 空白でなければ、"0"であっても処理を行うように修正
-            if (status !== "" && status.length < 10) {
+            // "reset" という文字が届いた時だけリセットするように変更
+            if (status !== "" && status !== "0" && status.length < 10) {
                 handleStatusChange(status);
             }
         } catch (e) {}
     }
 
     function handleStatusChange(status) {
-        // 命令が "0" なら即座に全停止して待機画面へ
-        if (status === "0") {
+        if (status === "reset") {
             stopTimer();
             return;
         }
 
         const s = status.toLowerCase();
         const isRightLeft = s.includes("right") || s.includes("left");
-        
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
 
         if (s.includes("right")) {
