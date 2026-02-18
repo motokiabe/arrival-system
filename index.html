@@ -1,21 +1,159 @@
-function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
-  var range = sheet.getRange("A1");
-  var status = e.parameter.status;
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>到着案内 Pro</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); transition: background-color 0.1s; }
+        .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+        #standby-image { display: block; }
+        #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
+        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
+        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
+        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
+        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
+        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
+        .flash-effect { animation: flash-white-strong 0.5s ease-out; }
+        @keyframes flash-white-strong { 0% { background-color: #000; } 20% { background-color: #fff; } 100% { background-color: #000; } }
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="start-overlay">
+        <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
+    </div>
 
-  // iPhoneから指示が届いた場合
-  if (status) {
-    range.setValue(status);
-    return ContentService.createTextOutput("OK: " + status);
-  }
+    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
+    <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
+    <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
+    
+    <div id="display-area">
+        <div id="timer-container">
+            <div id="label">到着まで</div>
+            <div id="main-timer"></div>
+            <div id="sub-message">まもなく到着します</div>
+        </div>
+    </div>
+    
+    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+    <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
+    <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
-  // iPadが「指示ある？」と見に来た場合
-  var value = range.getValue().toString();
-  
-  // 指示をiPadに伝えたら、セルを「0」に戻す
-  if (value !== "0" && value !== "") {
-    range.setValue("0"); 
-  }
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
+    let lastStatus = "0"; 
+    let timerId = null;
 
-  return ContentService.createTextOutput(value);
-}
+    async function setupAudio() {
+        const chime = document.getElementById('chime');
+        const chime2 = document.getElementById('chime2');
+        const alive = document.getElementById('keep-alive');
+        [chime, chime2].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }).catch(e=>{}); });
+        alive.play().catch(e=>{}); 
+        
+        document.getElementById('start-overlay').style.display = 'none';
+
+        // 起動時にサーバーをリセット
+        await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
+        setInterval(check, 1000);
+    }
+
+    async function check() {
+        try {
+            const res = await fetch(`${GAS_URL}?t=${Date.now()}`);
+            const status = await res.text();
+            if (status !== "0" && status !== "" && status.length < 10) {
+                handleStatusChange(status);
+            }
+        } catch (e) {}
+    }
+
+    function handleStatusChange(status) {
+        const s = status.toLowerCase();
+        const isRightLeft = s.includes("right") || s.includes("left");
+        forcePlayChime(isRightLeft ? 'chime2' : 'chime');
+
+        if (s.includes("right")) {
+            showCustomImage('right-image');
+        } else if (s.includes("left")) {
+            showCustomImage('left-image');
+        } else {
+            const mins = parseInt(status);
+            if (!isNaN(mins) && mins > 0) start(mins * 60);
+        }
+    }
+
+    function start(sec) {
+        let timeLeft = sec;
+        updateDisplay(timeLeft);
+        if (Math.ceil(timeLeft/60) === 5 || Math.ceil(timeLeft/60) === 1) triggerFlash();
+        if(timerId) clearInterval(timerId);
+        timerId = setInterval(() => {
+            timeLeft--;
+            if (Math.ceil(timeLeft / 60) === 1 && timeLeft === 59) triggerFlash();
+            if (timeLeft > 0) {
+                updateDisplay(timeLeft);
+            } else {
+                finishSequence();
+            }
+        }, 1000);
+    }
+
+    function finishSequence() {
+        clearInterval(timerId);
+        timerId = null;
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('sub-message').style.display = 'none';
+            stopTimer();
+        }, 60000);
+    }
+
+    function stopTimer() {
+        if(timerId) clearInterval(timerId);
+        timerId = null;
+        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
+        document.getElementById('standby-image').style.display = 'block';
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'none';
+    }
+
+    function forcePlayChime(audioId) {
+        const audio = document.getElementById(audioId);
+        audio.pause(); audio.currentTime = 0;
+        audio.play().catch(() => { audio.load(); audio.play(); });
+    }
+
+    function showCustomImage(imgId) {
+        if(timerId) clearInterval(timerId);
+        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'none';
+        document.getElementById(imgId).style.display = 'block';
+    }
+
+    function updateDisplay(sec) {
+        const min = Math.ceil(sec / 60);
+        document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
+        document.getElementById('label').style.display = 'block';
+        document.getElementById('main-timer').style.display = 'block';
+        document.getElementById('main-timer').innerHTML = `${min}<span class="unit">分</span>`;
+    }
+
+    function triggerFlash() {
+        const body = document.body;
+        body.classList.remove('flash-effect');
+        void body.offsetWidth; 
+        body.classList.add('flash-effect');
+    }
+</script>
+</body>
+</html>
