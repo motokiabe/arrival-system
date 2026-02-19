@@ -70,7 +70,6 @@
     }
 
     function handleStatusChange(status) {
-        // リセット命令が来たら音を鳴らしてから止める
         if (status === "reset") {
             forcePlayChime('chime'); 
             stopTimer();
@@ -113,12 +112,14 @@
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
+        
+        // 1分(60000)から3分(180000)へ延長
         setTimeout(() => {
             if (!timerId) {
                 document.getElementById('sub-message').style.display = 'none';
                 stopTimer();
             }
-        }, 60000);
+        }, 180000); 
     }
 
     function stopTimer() {
