@@ -14,7 +14,11 @@
         #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
-        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; animation: breathe 4s ease-in-out infinite; }
+        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
+        #office-container { display: none; }
+        .office-text-top { font-size: 4.5rem; font-weight: 100; margin-bottom: 1rem; }
+        .office-text-bottom { font-size: 6rem; font-weight: 600; color: #ffd700; } /* 金色で強調 */
+        .breathe { animation: breathe 4s ease-in-out infinite; }
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
         .flash-effect { animation: flash-white-strong 0.5s ease-out; }
         @keyframes flash-white-strong { 0% { background-color: #000; } 20% { background-color: #fff; } 100% { background-color: #000; } }
@@ -35,12 +39,17 @@
         <div id="timer-container">
             <div id="label">到着まで</div>
             <div id="main-timer"></div>
-            <div id="sub-message">まもなく到着します</div>
+            <div id="sub-message" class="breathe">まもなく到着します</div>
+            <div id="office-container" class="breathe">
+                <div class="office-text-top">事務所に到着します</div>
+                <div class="office-text-bottom">お疲れ様でした</div>
+            </div>
         </div>
     </div>
     
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
     <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
+    <audio id="office-bgm" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/backnumber.mp3" preload="auto"></audio>
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
@@ -50,10 +59,10 @@
     async function setupAudio() {
         const chime = document.getElementById('chime');
         const chime2 = document.getElementById('chime2');
+        const bgm = document.getElementById('office-bgm');
         const alive = document.getElementById('keep-alive');
-        [chime, chime2].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }).catch(e=>{}); });
+        [chime, chime2, bgm].forEach(c => { c.play().then(() => { c.pause(); c.currentTime = 0; }).catch(e=>{}); });
         alive.play().catch(e=>{}); 
-        
         document.getElementById('start-overlay').style.display = 'none';
         await fetch(`${GAS_URL}?status=0&t=${Date.now()}`).catch(e=>{});
         setInterval(check, 1000);
@@ -76,6 +85,11 @@
             return;
         }
 
+        if (status === "office") {
+            playOfficeSequence();
+            return;
+        }
+
         const s = status.toLowerCase();
         const isRightLeft = s.includes("right") || s.includes("left");
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
@@ -88,6 +102,26 @@
             const mins = parseInt(status);
             if (!isNaN(mins) && mins > 0) start(mins * 60);
         }
+    }
+
+    function playOfficeSequence() {
+        stopTimer();
+        document.getElementById('standby-image').style.display = 'none';
+        document.getElementById('office-container').style.display = 'block';
+        
+        // backnumber.mp3 を再生
+        const bgm = document.getElementById('office-bgm');
+        bgm.currentTime = 0;
+        bgm.play().catch(e => console.log("Audio play error:", e));
+        
+        triggerFlash();
+        
+        // 2分(120,000ミリ秒)後に終了
+        setTimeout(() => {
+            bgm.pause();
+            document.getElementById('office-container').style.display = 'none';
+            stopTimer();
+        }, 120000);
     }
 
     function start(sec) {
@@ -112,8 +146,6 @@
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
-        
-        // 1分(60000)から3分(180000)へ延長
         setTimeout(() => {
             if (!timerId) {
                 document.getElementById('sub-message').style.display = 'none';
@@ -125,11 +157,14 @@
     function stopTimer() {
         if(timerId) clearInterval(timerId);
         timerId = null;
+        const bgm = document.getElementById('office-bgm');
+        bgm.pause();
         document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('sub-message').style.display = 'none';
+        document.getElementById('office-container').style.display = 'none';
     }
 
     function forcePlayChime(audioId) {
@@ -139,11 +174,8 @@
     }
 
     function showCustomImage(imgId) {
-        if(timerId) clearInterval(timerId);
+        stopTimer();
         document.querySelectorAll('.fullscreen-img').forEach(img => img.style.display = 'none');
-        document.getElementById('label').style.display = 'none';
-        document.getElementById('main-timer').style.display = 'none';
-        document.getElementById('sub-message').style.display = 'none';
         document.getElementById(imgId).style.display = 'block';
     }
 
