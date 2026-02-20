@@ -9,18 +9,21 @@
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); }
         .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+        
+        /* リセット後の待機画像 */
         #standby-image { display: block; }
+        
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
         #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
         
-        /* まもなく到着画面：ふわふわ点滅を復活 */
+        /* まもなく到着画面：ふわふわ点滅あり */
         #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
         .breathe { animation: breathe 4s ease-in-out infinite; }
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
         
-        /* 事務所モード：点滅なしの静止表示 */
+        /* 事務所モード：点滅なしの静止表示（文字は小さめ） */
         #office-container { display: none; }
         .office-text-main { font-size: 4rem; font-weight: 600; color: #ffffff; letter-spacing: 2px; margin-bottom: 1rem; }
         .office-text-sub { font-size: 2.5rem; font-weight: 100; color: #aaaaaa; letter-spacing: 1px; }
@@ -34,7 +37,7 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2857.png">
+    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2925.png">
     <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
     <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
     
