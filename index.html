@@ -15,9 +15,12 @@
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
         #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
+        
+        /* 事務所モード用スタイル */
         #office-container { display: none; }
-        .office-text-top { font-size: 4.5rem; font-weight: 100; margin-bottom: 1rem; }
-        .office-text-bottom { font-size: 6rem; font-weight: 600; color: #ffd700; } /* 金色で強調 */
+        .office-text-main { font-size: 7rem; font-weight: 600; color: #ffffff; letter-spacing: 4px; margin-bottom: 2rem; }
+        .office-text-sub { font-size: 3.5rem; font-weight: 100; color: #aaaaaa; letter-spacing: 2px; }
+        
         .breathe { animation: breathe 4s ease-in-out infinite; }
         @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
         .flash-effect { animation: flash-white-strong 0.5s ease-out; }
@@ -40,9 +43,10 @@
             <div id="label">到着まで</div>
             <div id="main-timer"></div>
             <div id="sub-message" class="breathe">まもなく到着します</div>
+            
             <div id="office-container" class="breathe">
-                <div class="office-text-top">事務所に到着します</div>
-                <div class="office-text-bottom">お疲れ様でした</div>
+                <div class="office-text-main">事務所に到着します</div>
+                <div class="office-text-sub">お疲れ様でした</div>
             </div>
         </div>
     </div>
@@ -109,14 +113,13 @@
         document.getElementById('standby-image').style.display = 'none';
         document.getElementById('office-container').style.display = 'block';
         
-        // backnumber.mp3 を再生
         const bgm = document.getElementById('office-bgm');
         bgm.currentTime = 0;
         bgm.play().catch(e => console.log("Audio play error:", e));
         
         triggerFlash();
         
-        // 2分(120,000ミリ秒)後に終了
+        // 2分後に終了
         setTimeout(() => {
             bgm.pause();
             document.getElementById('office-container').style.display = 'none';
