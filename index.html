@@ -7,24 +7,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); transition: background-color 0.1s; }
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); }
         .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
         #standby-image { display: block; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
         #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
         #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
         .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
-        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
+        #sub-message { font-size: 4rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
         
-        /* 事務所モード用：文字サイズを少し縮小 */
+        /* 事務所モード用：サイズをさらに縮小し、点滅を削除 */
         #office-container { display: none; }
-        .office-text-main { font-size: 5.5rem; font-weight: 600; color: #ffffff; letter-spacing: 3px; margin-bottom: 1.5rem; }
-        .office-text-sub { font-size: 3rem; font-weight: 100; color: #aaaaaa; letter-spacing: 2px; }
+        .office-text-main { font-size: 4rem; font-weight: 600; color: #ffffff; letter-spacing: 2px; margin-bottom: 1rem; }
+        .office-text-sub { font-size: 2.5rem; font-weight: 100; color: #aaaaaa; letter-spacing: 1px; }
         
-        .breathe { animation: breathe 4s ease-in-out infinite; }
-        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
-        
-        /* フラッシュ用スタイルは削除しました */
+        /* 点滅アニメーション（breathe）を削除しました */
 
         #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
         #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
@@ -43,9 +40,9 @@
         <div id="timer-container">
             <div id="label">到着まで</div>
             <div id="main-timer"></div>
-            <div id="sub-message" class="breathe">まもなく到着します</div>
+            <div id="sub-message">まもなく到着します</div>
             
-            <div id="office-container" class="breathe">
+            <div id="office-container">
                 <div class="office-text-main">事務所に到着します</div>
                 <div class="office-text-sub">お疲れ様でした</div>
             </div>
@@ -114,8 +111,6 @@
         bgm.currentTime = 0;
         bgm.play().catch(e => console.log("Audio play error:", e));
         
-        // triggerFlash() の呼び出しを削除しました
-        
         setTimeout(() => {
             bgm.pause();
             document.getElementById('office-container').style.display = 'none';
@@ -126,11 +121,9 @@
     function start(sec) {
         let timeLeft = sec;
         updateDisplay(timeLeft);
-        // 開始時のトリガーフラッシュを削除
         if(timerId) clearInterval(timerId);
         timerId = setInterval(() => {
             timeLeft--;
-            // 1分前フラッシュを削除
             if (timeLeft > 0) {
                 updateDisplay(timeLeft);
             } else {
@@ -186,7 +179,6 @@
         document.getElementById('main-timer').innerHTML = `${min}<span class="unit">分</span>`;
     }
 
-    // triggerFlash 関数は不要になりましたが、エラー防止のため中身を空にして残しています
     function triggerFlash() {}
 </script>
 </body>
