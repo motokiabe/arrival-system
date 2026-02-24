@@ -47,21 +47,28 @@
     
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
     <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
+    <audio id="chime3" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime3.mp3" preload="auto"></audio>
     <audio id="office-bgm" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/backnumber.mp3" preload="auto"></audio>
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
     var GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
     var timerId = null;
-    var guardActive = false; // ガード中かどうかのスイッチ
+    var guardActive = false;
 
     async function setupAudio() {
         var chime = document.getElementById('chime');
         var chime2 = document.getElementById('chime2');
+        var chime3 = document.getElementById('chime3');
         var bgm = document.getElementById('office-bgm');
         var alive = document.getElementById('keep-alive');
-        [chime, chime2, bgm].forEach(function(c) { c.play().then(function() { c.pause(); c.currentTime = 0; }).catch(function(e){}); });
+        
+        // 全ての音声をブラウザに許可させる
+        [chime, chime2, chime3, bgm].forEach(function(c) { 
+            c.play().then(function() { c.pause(); c.currentTime = 0; }).catch(function(e){}); 
+        });
         alive.play().catch(function(e){}); 
+        
         document.getElementById('start-overlay').style.display = 'none';
         await fetch(GAS_URL + "?status=0&t=" + Date.now()).catch(function(e){});
         setInterval(check, 1000);
@@ -84,24 +91,21 @@
             return;
         }
 
-        // カウントダウン中（guardActiveがtrue）は、事務所・到着信号を無視
-        if (guardActive && (status === "office" || status === "arrival")) {
-            return;
-        }
+        if (guardActive && (status === "office" || status === "arrival")) return;
 
         if (status === "office") {
             playOfficeSequence();
             return;
         }
         if (status === "arrival") {
-            forcePlayChime('chime');
-            finishSequence();
+            finishSequence(); // 音声再生はこの中で行う
             return;
         }
 
         var s = status.toLowerCase();
         var isRightLeft = (s.indexOf("right") !== -1 || s.indexOf("left") !== -1);
         forcePlayChime(isRightLeft ? 'chime2' : 'chime');
+        
         if (s.indexOf("right") !== -1) {
             showCustomImage('right-image');
         } else if (s.indexOf("left") !== -1) {
@@ -128,7 +132,7 @@
 
     function start(sec) {
         var timeLeft = sec;
-        guardActive = true; // ガード開始！
+        guardActive = true;
         updateDisplay(timeLeft);
         if(timerId) clearInterval(timerId);
         timerId = setInterval(function() {
@@ -144,12 +148,17 @@
     function finishSequence() {
         if(timerId) clearInterval(timerId);
         timerId = null;
-        guardActive = false; // まもなく画面になったらガード解除
+        guardActive = false;
+        
+        // 【修正】まもなく到着画面になった時に Chime3 を鳴らす
+        forcePlayChime('chime3');
+
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('office-container').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
+        
         setTimeout(function() {
             if (!timerId) {
                 document.getElementById('sub-message').style.display = 'none';
@@ -191,7 +200,6 @@
         document.getElementById('main-timer').style.display = 'block';
         document.getElementById('main-timer').innerHTML = min + '<span class="unit">分</span>';
     }
-    function triggerFlash() {}
 </script>
 </body>
 </html>
