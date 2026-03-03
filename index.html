@@ -62,13 +62,10 @@
         var chime3 = document.getElementById('chime3');
         var bgm = document.getElementById('office-bgm');
         var alive = document.getElementById('keep-alive');
-        
-        // 全ての音声をブラウザに許可させる
         [chime, chime2, chime3, bgm].forEach(function(c) { 
             c.play().then(function() { c.pause(); c.currentTime = 0; }).catch(function(e){}); 
         });
         alive.play().catch(function(e){}); 
-        
         document.getElementById('start-overlay').style.display = 'none';
         await fetch(GAS_URL + "?status=0&t=" + Date.now()).catch(function(e){});
         setInterval(check, 1000);
@@ -85,20 +82,24 @@
     }
 
     function handleStatusChange(status) {
+        // リセットはいつでも有効
         if (status === "reset") {
             forcePlayChime('chime'); 
             stopTimer();
             return;
         }
 
-        if (guardActive && (status === "office" || status === "arrival")) return;
+        // 「まもなく（arrival）」はガードを無視して割り込む
+        if (status === "arrival") {
+            finishSequence(); 
+            return;
+        }
+
+        // 5分前タイマー中のガード（事務所信号 office のみ無視）
+        if (guardActive && status === "office") return;
 
         if (status === "office") {
             playOfficeSequence();
-            return;
-        }
-        if (status === "arrival") {
-            finishSequence(); // 音声再生はこの中で行う
             return;
         }
 
@@ -148,9 +149,8 @@
     function finishSequence() {
         if(timerId) clearInterval(timerId);
         timerId = null;
-        guardActive = false;
+        guardActive = false; // ガード解除
         
-        // 【修正】まもなく到着画面になった時に Chime3 を鳴らす
         forcePlayChime('chime3');
 
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
