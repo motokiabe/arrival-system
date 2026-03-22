@@ -54,6 +54,7 @@
 <script>
     var GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
     var timerId = null;
+    var delayId = null;
     var guardActive = false;
 
     async function setupAudio() {
@@ -82,20 +83,17 @@
     }
 
     function handleStatusChange(status) {
-        // リセットはいつでも有効
         if (status === "reset") {
             forcePlayChime('chime'); 
             stopTimer();
             return;
         }
 
-        // 「まもなく（arrival）」はガードを無視して割り込む
         if (status === "arrival") {
             finishSequence(); 
             return;
         }
 
-        // 5分前タイマー中のガード（事務所信号 office のみ無視）
         if (guardActive && status === "office") return;
 
         if (status === "office") {
@@ -105,35 +103,35 @@
 
         var s = status.toLowerCase();
         var isRightLeft = (s.indexOf("right") !== -1 || s.indexOf("left") !== -1);
-        forcePlayChime(isRightLeft ? 'chime2' : 'chime');
         
-        if (s.indexOf("right") !== -1) {
-            showCustomImage('right-image');
-        } else if (s.indexOf("left") !== -1) {
-            showCustomImage('left-image');
+        if (isRightLeft) {
+            forcePlayChime('chime2');
+            if (s.indexOf("right") !== -1) showCustomImage('right-image');
+            else if (s.indexOf("left") !== -1) showCustomImage('left-image');
         } else {
             var mins = parseInt(status);
-            if (!isNaN(mins) && mins > 0) start(mins * 60);
+            if (!isNaN(mins) && mins > 0) {
+                // 【重要】30秒待機してから開始する処理
+                prepareStart(mins * 60);
+            }
         }
     }
 
-    function playOfficeSequence() {
-        stopTimer();
-        document.getElementById('standby-image').style.display = 'none';
-        document.getElementById('office-container').style.display = 'block';
-        var bgm = document.getElementById('office-bgm');
-        bgm.currentTime = 0;
-        bgm.play().catch(function(e) {});
-        setTimeout(function() {
-            bgm.pause();
-            document.getElementById('office-container').style.display = 'none';
-            stopTimer();
-        }, 120000);
+    function prepareStart(sec) {
+        stopTimer(); // 以前のタイマーやディレイをクリア
+        guardActive = true;
+        
+        // チャイムだけ先に鳴らして「受け付けた」ことを知らせる
+        forcePlayChime('chime');
+
+        // 30秒後に実際のタイマーを開始
+        delayId = setTimeout(function() {
+            start(sec);
+        }, 30000); 
     }
 
     function start(sec) {
         var timeLeft = sec;
-        guardActive = true;
         updateDisplay(timeLeft);
         if(timerId) clearInterval(timerId);
         timerId = setInterval(function() {
@@ -148,8 +146,10 @@
 
     function finishSequence() {
         if(timerId) clearInterval(timerId);
+        if(delayId) clearTimeout(delayId);
         timerId = null;
-        guardActive = false; // ガード解除
+        delayId = null;
+        guardActive = false;
         
         forcePlayChime('chime3');
 
@@ -160,7 +160,7 @@
         document.getElementById('sub-message').style.display = 'block';
         
         setTimeout(function() {
-            if (!timerId) {
+            if (!timerId && !delayId) {
                 document.getElementById('sub-message').style.display = 'none';
                 stopTimer();
             }
@@ -169,7 +169,9 @@
 
     function stopTimer() {
         if(timerId) clearInterval(timerId);
+        if(delayId) clearTimeout(delayId);
         timerId = null;
+        delayId = null;
         guardActive = false;
         var bgm = document.getElementById('office-bgm');
         bgm.pause();
