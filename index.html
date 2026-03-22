@@ -1,4 +1,86 @@
-/* 修正箇所：prepareStart内のチャイムを削除し、start内に追加しました */
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>到着案内 Pro</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); }
+        .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+        #standby-image { display: block; }
+        #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
+        #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
+        #main-timer { font-size: 22rem; font-weight: 100; line-height: 1; letter-spacing: -5px; display: none; }
+        .unit { font-size: 8rem; margin-left: 0.5rem; vertical-align: baseline; }
+        #sub-message { font-size: 4.5rem; font-weight: 100; color: #ffffff; display: none; letter-spacing: 2px; }
+        .breathe { animation: breathe 4s ease-in-out infinite; }
+        @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 1.0; } 100% { opacity: 0.2; } }
+        #office-container { display: none; }
+        .office-text-main { font-size: 4rem; font-weight: 600; color: #ffffff; letter-spacing: 2px; margin-bottom: 1rem; }
+        .office-text-sub { font-size: 2.5rem; font-weight: 100; color: #aaaaaa; letter-spacing: 1px; }
+        #start-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        #start-btn { padding: 30px 60px; font-size: 2rem; border: 1px solid #fff; background: #222; color: #fff; border-radius: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="start-overlay">
+        <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
+    </div>
+
+    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2925.png">
+    <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
+    <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
+    
+    <div id="display-area">
+        <div id="timer-container">
+            <div id="label">到着まで</div>
+            <div id="main-timer"></div>
+            <div id="sub-message" class="breathe">まもなく到着します</div>
+            <div id="office-container">
+                <div class="office-text-main">事務所に到着します</div>
+                <div class="office-text-sub">お疲れ様でした</div>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
+    <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
+    <audio id="chime3" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime3.mp3" preload="auto"></audio>
+    <audio id="office-bgm" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/backnumber.mp3" preload="auto"></audio>
+    <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
+
+<script>
+    var GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
+    var timerId = null;
+    var delayId = null;
+    var guardActive = false;
+
+    async function setupAudio() {
+        var chime = document.getElementById('chime');
+        var chime2 = document.getElementById('chime2');
+        var chime3 = document.getElementById('chime3');
+        var bgm = document.getElementById('office-bgm');
+        var alive = document.getElementById('keep-alive');
+        [chime, chime2, chime3, bgm].forEach(function(c) { 
+            c.play().then(function() { c.pause(); c.currentTime = 0; }).catch(function(e){}); 
+        });
+        alive.play().catch(function(e){}); 
+        document.getElementById('start-overlay').style.display = 'none';
+        await fetch(GAS_URL + "?status=0&t=" + Date.now()).catch(function(e){});
+        setInterval(check, 1000);
+    }
+
+    async function check() {
+        try {
+            var res = await fetch(GAS_URL + "?t=" + Date.now());
+            var status = await res.text();
+            if (status !== "" && status !== "0" && status.length < 10) {
+                handleStatusChange(status);
+            }
+        } catch (e) {}
+    }
 
     function handleStatusChange(status) {
         if (status === "reset") {
@@ -29,7 +111,6 @@
         } else {
             var mins = parseInt(status);
             if (!isNaN(mins) && mins > 0) {
-                // 30秒待機してから開始
                 prepareStart(mins * 60);
             }
         }
@@ -38,9 +119,7 @@
     function prepareStart(sec) {
         stopTimer(); 
         guardActive = true;
-        
-        // 【修正】ここでは音を鳴らさず、静かに30秒待ちます
-        
+        // 30秒間、音を鳴らさずに待機
         delayId = setTimeout(function() {
             start(sec);
         }, 30000); 
@@ -48,10 +127,8 @@
 
     function start(sec) {
         var timeLeft = sec;
-        
-        // 【修正】30秒経って画面が切り替わるこの瞬間にチャイムを鳴らす
+        // 30秒経った瞬間に音を鳴らして開始を知らせる
         forcePlayChime('chime');
-
         updateDisplay(timeLeft);
         if(timerId) clearInterval(timerId);
         timerId = setInterval(function() {
@@ -63,3 +140,65 @@
             }
         }, 1000);
     }
+
+    function finishSequence() {
+        if(timerId) clearInterval(timerId);
+        if(delayId) clearTimeout(delayId);
+        timerId = null;
+        delayId = null;
+        guardActive = false;
+        
+        forcePlayChime('chime3');
+
+        document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('office-container').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'block';
+        
+        setTimeout(function() {
+            if (!timerId && !delayId) {
+                document.getElementById('sub-message').style.display = 'none';
+                stopTimer();
+            }
+        }, 180000); 
+    }
+
+    function stopTimer() {
+        if(timerId) clearInterval(timerId);
+        if(delayId) clearTimeout(delayId);
+        timerId = null;
+        delayId = null;
+        guardActive = false;
+        var bgm = document.getElementById('office-bgm');
+        bgm.pause();
+        document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
+        document.getElementById('standby-image').style.display = 'block';
+        document.getElementById('label').style.display = 'none';
+        document.getElementById('main-timer').style.display = 'none';
+        document.getElementById('sub-message').style.display = 'none';
+        document.getElementById('office-container').style.display = 'none';
+    }
+
+    function forcePlayChime(audioId) {
+        var audio = document.getElementById(audioId);
+        audio.pause(); audio.currentTime = 0;
+        audio.play().catch(function() { audio.load(); audio.play(); });
+    }
+
+    function showCustomImage(imgId) {
+        stopTimer();
+        document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
+        document.getElementById(imgId).style.display = 'block';
+    }
+
+    function updateDisplay(sec) {
+        var min = Math.ceil(sec / 60);
+        document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
+        document.getElementById('label').style.display = 'block';
+        document.getElementById('main-timer').style.display = 'block';
+        document.getElementById('main-timer').innerHTML = min + '<span class="unit">分</span>';
+    }
+</script>
+</body>
+</html>
