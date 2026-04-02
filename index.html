@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro</title>
+    <title>到着案内 Pro (通信強化版)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -52,6 +52,7 @@
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
 <script>
+    // ここにご自身の最新GAS URLを貼り付けてください
     var GAS_URL = "https://script.google.com/macros/s/AKfycbxY8F4cnzo7leOVGaA1l1yWDVZ3Dy4GZRaSfpJde5GLXPL7c-XUEIfuApLZD4CoMD4l/exec"; 
     var timerId = null;
     var delayId = null;
@@ -68,18 +69,30 @@
         });
         alive.play().catch(function(e){}); 
         document.getElementById('start-overlay').style.display = 'none';
+        
+        // 初回接続
         await fetch(GAS_URL + "?status=0&t=" + Date.now()).catch(function(e){});
-        setInterval(check, 1000);
+        
+        // 監視スタート
+        loopCheck();
     }
 
-    async function check() {
+    // 通信エラーが起きても止まらないループ
+    async function loopCheck() {
         try {
-            var res = await fetch(GAS_URL + "?t=" + Date.now());
+            var res = await fetch(GAS_URL + "?t=" + Date.now(), { signal: AbortSignal.timeout(5000) });
+            if (!res.ok) throw new Error('Network response was not ok');
             var status = await res.text();
+            
             if (status !== "" && status !== "0" && status.length < 10) {
                 handleStatusChange(status);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.log("通信エラー中... 復旧を待っています: ", e);
+        }
+        
+        // 通信が成功しても失敗しても、1秒後にまた実行する
+        setTimeout(loopCheck, 1000);
     }
 
     function handleStatusChange(status) {
@@ -88,14 +101,11 @@
             stopTimer();
             return;
         }
-
         if (status === "arrival") {
             finishSequence(); 
             return;
         }
-
         if (guardActive && status === "office") return;
-
         if (status === "office") {
             playOfficeSequence();
             return;
@@ -119,7 +129,6 @@
     function prepareStart(sec) {
         stopTimer(); 
         guardActive = true;
-        // 30秒間、音を鳴らさずに待機
         delayId = setTimeout(function() {
             start(sec);
         }, 30000); 
@@ -127,7 +136,6 @@
 
     function start(sec) {
         var timeLeft = sec;
-        // 30秒経った瞬間に音を鳴らして開始を知らせる
         forcePlayChime('chime');
         updateDisplay(timeLeft);
         if(timerId) clearInterval(timerId);
@@ -147,15 +155,12 @@
         timerId = null;
         delayId = null;
         guardActive = false;
-        
         forcePlayChime('chime3');
-
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('office-container').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
-        
         setTimeout(function() {
             if (!timerId && !delayId) {
                 document.getElementById('sub-message').style.display = 'none';
