@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (安定版)</title>
+    <title>到着案内 Pro (音声連動版)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -45,9 +45,11 @@
         </div>
     </div>
     
+    <audio id="5min-voice" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/5min.mp3" preload="auto"></audio>
+    <audio id="3min-voice" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/3min.mp3" preload="auto"></audio>
+    <audio id="mamonaku-voice" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/mamonaku.mp3" preload="auto"></audio>
     <audio id="chime" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime.mp3" preload="auto"></audio>
     <audio id="chime2" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime2.mp3" preload="auto"></audio>
-    <audio id="chime3" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/chime3.mp3" preload="auto"></audio>
     <audio id="office-bgm" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/backnumber.mp3" preload="auto"></audio>
     <audio id="keep-alive" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAPH/9P/0//T/" loop></audio>
 
@@ -58,30 +60,23 @@
     var guardActive = false;
 
     function setupAudio() {
-        var chime = document.getElementById('chime');
-        var chime2 = document.getElementById('chime2');
-        var chime3 = document.getElementById('chime3');
-        var bgm = document.getElementById('office-bgm');
-        var alive = document.getElementById('keep-alive');
-        
-        [chime, chime2, chime3, bgm].forEach(function(c) { 
-            c.play().then(function() { c.pause(); c.currentTime = 0; }).catch(function(e){}); 
+        var ids = ['5min-voice', '3min-voice', 'mamonaku-voice', 'chime', 'chime2', 'office-bgm', 'keep-alive'];
+        ids.forEach(function(id) {
+            var audio = document.getElementById(id);
+            if (id === 'keep-alive') {
+                audio.play().catch(function(e){});
+            } else {
+                audio.play().then(function() { audio.pause(); audio.currentTime = 0; }).catch(function(e){});
+            }
         });
-        alive.play().catch(function(e){}); 
-        
         document.getElementById('start-overlay').style.display = 'none';
-        
-        // 初回のみ即実行
         check();
-        // 1秒ごとのループを開始（setIntervalに戻して安定性を優先）
         setInterval(check, 1000);
     }
 
     function check() {
-        // fetchのタイムアウトを古いOSでも動く書き方に変更
         var controller = new AbortController();
         var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
-
         fetch(GAS_URL + "?t=" + Date.now(), { signal: controller.signal })
             .then(function(res) {
                 clearTimeout(timeoutId);
@@ -92,10 +87,7 @@
                     handleStatusChange(status);
                 }
             })
-            .catch(function(e) {
-                // 通信エラー（Wi-Fi切れ等）が起きてもログに出すだけで止めない
-                console.log("Waiting for network...");
-            });
+            .catch(function(e) { console.log("Network error..."); });
     }
 
     function handleStatusChange(status) {
@@ -104,10 +96,13 @@
             stopTimer();
             return;
         }
+        
+        // 【重要】手動ボタン(arrival)による割り込み
         if (status === "arrival") {
             finishSequence(); 
             return;
         }
+
         if (guardActive && status === "office") return;
         if (status === "office") {
             playOfficeSequence();
@@ -124,22 +119,32 @@
         } else {
             var mins = parseInt(status);
             if (!isNaN(mins) && mins > 0) {
-                prepareStart(mins * 60);
+                prepareStart(mins);
             }
         }
     }
 
-    function prepareStart(sec) {
+    function prepareStart(mins) {
         stopTimer(); 
         guardActive = true;
         delayId = setTimeout(function() {
-            start(sec);
+            start(mins * 60);
         }, 30000); 
     }
 
     function start(sec) {
         var timeLeft = sec;
-        forcePlayChime('chime');
+        var initialMins = Math.ceil(sec / 60);
+        
+        // カウントダウン開始時の音声
+        if (initialMins === 5) {
+            forcePlayChime('5min-voice');
+        } else if (initialMins === 3) {
+            forcePlayChime('3min-voice');
+        } else {
+            forcePlayChime('chime');
+        }
+
         updateDisplay(timeLeft);
         if(timerId) clearInterval(timerId);
         timerId = setInterval(function() {
@@ -147,23 +152,30 @@
             if (timeLeft > 0) {
                 updateDisplay(timeLeft);
             } else {
+                // 【重要】タイマーが0になった時の自動切り替え
                 finishSequence();
             }
         }, 1000);
     }
 
     function finishSequence() {
+        // 既存のタイマーや予約をすべて止める
         if(timerId) clearInterval(timerId);
         if(delayId) clearTimeout(delayId);
         timerId = null;
         delayId = null;
         guardActive = false;
-        forcePlayChime('chime3');
+        
+        // どんな経路でここに来ても mamonaku を鳴らす
+        forcePlayChime('mamonaku-voice');
+
+        // 表示の切り替え
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
         document.getElementById('office-container').style.display = 'none';
         document.getElementById('sub-message').style.display = 'block';
+        
         setTimeout(function() {
             if (!timerId && !delayId) {
                 document.getElementById('sub-message').style.display = 'none';
@@ -190,8 +202,9 @@
 
     function forcePlayChime(audioId) {
         var audio = document.getElementById(audioId);
+        if(!audio) return;
         audio.pause(); audio.currentTime = 0;
-        audio.play().catch(function() { audio.load(); audio.play(); });
+        audio.play().catch(function(e) { console.log("Audio play error", e); });
     }
 
     function showCustomImage(imgId) {
