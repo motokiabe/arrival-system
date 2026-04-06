@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (10s Delay)</title>
+    <title>到着案内 Pro (Latest)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -29,7 +29,7 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_3863.png">
+    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_3866.png">
     <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
     <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
     
@@ -96,10 +96,13 @@
             stopTimer();
             return;
         }
+        
+        // 手動「arrival」またはカウント終了時に呼び出す
         if (status === "arrival") {
             finishSequence(); 
             return;
         }
+
         if (guardActive && status === "office") return;
         if (status === "office") {
             playOfficeSequence();
@@ -124,7 +127,7 @@
     function prepareStart(mins) {
         stopTimer(); 
         guardActive = true;
-        // 【修正】30秒から10秒（10000ミリ秒）に変更
+        // 10秒のディレイ
         delayId = setTimeout(function() {
             start(mins * 60);
         }, 10000); 
@@ -132,11 +135,12 @@
 
     function start(sec) {
         var timeLeft = sec;
-        var mins = Math.ceil(sec / 60);
+        var initialMins = Math.ceil(sec / 60);
         
-        if (mins === 5) {
+        // 開始時の音声判定
+        if (initialMins === 5) {
             forcePlayChime('5min-voice');
-        } else if (mins === 3) {
+        } else if (initialMins === 3) {
             forcePlayChime('3min-voice');
         } else {
             forcePlayChime('chime');
@@ -161,6 +165,7 @@
         delayId = null;
         guardActive = false;
         
+        // まもなく到着の音声を再生
         forcePlayChime('mamonaku-voice');
 
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
