@@ -2,13 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>到着案内 Pro (音声連動版)</title>
+    <title>到着案内 Pro (カスタム版)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { margin: 0; background-color: #000; color: #fff; font-family: "Hiragino Sans", "W1", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; padding-top: env(safe-area-inset-top); }
         .fullscreen-img { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+        /* 【修正】通常時（待機画像）のデフォルト表示 */
         #standby-image { display: block; }
         #display-area { text-align: center; width: 100%; z-index: 10; pointer-events: none; }
         #label { font-size: 2.5rem; color: #888; margin-bottom: -1rem; font-weight: 100; display: none; }
@@ -29,7 +30,7 @@
         <button id="start-btn" onclick="setupAudio()">システムを開始する</button>
     </div>
 
-    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_2925.png">
+    <img id="standby-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/IMG_3863.png">
     <img id="right-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/right.png">
     <img id="left-image" class="fullscreen-img" src="https://raw.githubusercontent.com/motokiabe/arrival-system/main/left.png">
     
@@ -87,7 +88,7 @@
                     handleStatusChange(status);
                 }
             })
-            .catch(function(e) { console.log("Network error..."); });
+            .catch(function(e) { console.log("Waiting for network..."); });
     }
 
     function handleStatusChange(status) {
@@ -96,13 +97,10 @@
             stopTimer();
             return;
         }
-        
-        // 【重要】手動ボタン(arrival)による割り込み
         if (status === "arrival") {
             finishSequence(); 
             return;
         }
-
         if (guardActive && status === "office") return;
         if (status === "office") {
             playOfficeSequence();
@@ -134,12 +132,12 @@
 
     function start(sec) {
         var timeLeft = sec;
-        var initialMins = Math.ceil(sec / 60);
+        var mins = Math.ceil(sec / 60);
         
-        // カウントダウン開始時の音声
-        if (initialMins === 5) {
+        // 【修正】分数に応じた音声を再生
+        if (mins === 5) {
             forcePlayChime('5min-voice');
-        } else if (initialMins === 3) {
+        } else if (mins === 3) {
             forcePlayChime('3min-voice');
         } else {
             forcePlayChime('chime');
@@ -152,24 +150,21 @@
             if (timeLeft > 0) {
                 updateDisplay(timeLeft);
             } else {
-                // 【重要】タイマーが0になった時の自動切り替え
                 finishSequence();
             }
         }, 1000);
     }
 
     function finishSequence() {
-        // 既存のタイマーや予約をすべて止める
         if(timerId) clearInterval(timerId);
         if(delayId) clearTimeout(delayId);
         timerId = null;
         delayId = null;
         guardActive = false;
         
-        // どんな経路でここに来ても mamonaku を鳴らす
+        // 【修正】まもなく到着の音声を再生
         forcePlayChime('mamonaku-voice');
 
-        // 表示の切り替え
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
@@ -193,6 +188,7 @@
         var bgm = document.getElementById('office-bgm');
         bgm.pause();
         document.querySelectorAll('.fullscreen-img').forEach(function(img) { img.style.display = 'none'; });
+        // 【修正】IMG_3863.png（standby-image）を表示
         document.getElementById('standby-image').style.display = 'block';
         document.getElementById('label').style.display = 'none';
         document.getElementById('main-timer').style.display = 'none';
@@ -204,7 +200,7 @@
         var audio = document.getElementById(audioId);
         if(!audio) return;
         audio.pause(); audio.currentTime = 0;
-        audio.play().catch(function(e) { console.log("Audio play error", e); });
+        audio.play().catch(function() { audio.load(); audio.play(); });
     }
 
     function showCustomImage(imgId) {
